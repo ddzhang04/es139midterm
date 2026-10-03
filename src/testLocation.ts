@@ -1,5 +1,5 @@
 export type Point = { latitude: number; longitude: number };
-export type PersistentAnchor = { id: string; expiresAt: number; offset: [number, number, number] };
+export type PersistentAnchor = { id: string; expiresAt: number; offset: [number, number, number]; surfaceAlignment?: 'Horizontal' | 'Vertical'; surfaceClassification?: string };
 export type TestSpot = Point & { name: string; radius: number; savedAt: number; anchor?: PersistentAnchor };
 export const TEST_SPOT_KEY = 'historylens-harvard-test-spot';
 export function distanceMeters(a: Point, b: Point) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { PlacementScene } from '../src/SurfaceARScene';
+import NativeSurfaceAR, { PlacementScene } from '../src/SurfaceARScene';
 jest.mock('../src/SurfaceARView', () => ({ persistentAnchorsEnabled: true }));
 import type { SurfaceARProps } from '../src/SurfaceARView';
 
@@ -10,7 +10,7 @@ jest.mock('@reactvision/react-viro', () => {
   const { View } = require('react-native');
   const component = (name: string) => (props: object) => React.createElement(View, { ...props, testID: name });
   return {
-    ViroARScene: component('scene'),
+    ViroARScene: component('scene'), ViroARPlane: component('plane'), ViroARSceneNavigator: component('navigator'),
     ViroARPlaneSelector: React.forwardRef((props: object, ref: unknown) => { React.useImperativeHandle(ref, () => mockAnchors); return React.createElement(View, { ...props, testID: 'selector' }); }),
     ViroNode: component('node'), ViroQuad: component('quad'), ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() }, ViroTrackingStateConstants: { TRACKING_NORMAL: 3 },
@@ -84,8 +84,15 @@ test('cloud hosting saves the tapped surface offset and restoration uses the ret
   expect(resolveCloudAnchor).not.toHaveBeenCalled();
   await act(async () => fireEvent(restored.getByTestId('scene'), 'trackingUpdated', 3));
   expect(resolveCloudAnchor).toHaveBeenCalledWith('saved-plane');
+  expect(restoredApp.onPhaseChange).toHaveBeenLastCalledWith('aligning');
+  expect(restored.queryByTestId('plane')).toBeNull();
+  fireEvent(restored.getByTestId('scene'), 'anchorFound', { anchorId: 'table', type: 'plane', position: [3, 0, -2], rotation: [0, 0, 0], alignment: 'Horizontal', width: 2, height: 2 });
   expect(restoredApp.onPhaseChange).toHaveBeenLastCalledWith('restored');
-  expect(restored.getAllByTestId('node').some(node => JSON.stringify(node.props.position) === '[3,0,-2]' && JSON.stringify(node.props.rotation) === '[0,45,0]')).toBe(true);
+  expect(restored.getByTestId('plane').props.anchorId).toBe('table');
+  const local = restored.getByTestId('plane').findByProps({ testID: 'node' }).props.position;
+  expect(local[0]).toBeCloseTo(0.35355);
+  expect(local[1]).toBe(0);
+  expect(local[2]).toBeCloseTo(0.07071);
 });
 
 test('cloud errors and expired anchors report failure without inventing a placement', async () => {
@@ -115,6 +122,8 @@ test('a restore failure stays visible through tracking updates and can be retrie
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
   await act(async () => view.rerender(<PlacementScene sceneNavigator={{ ...navigator, viroAppProps: { ...app, restoreRequest: 1 } }} />));
   expect(resolveCloudAnchor).toHaveBeenCalledTimes(2);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('aligning');
+  fireEvent(view.getByTestId('scene'), 'anchorFound', { anchorId: 'table', type: 'plane', position: [1, 0, -1], rotation: [0, 0, 0], alignment: 'Horizontal', width: 1, height: 1 });
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('restored');
 });
 
@@ -129,4 +138,26 @@ test('a failed cloud save cannot be disguised as a placed or saved marker', asyn
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
   expect(app.onAnchorError).toHaveBeenCalledWith(expect.stringContaining('Scan more'));
   expect(app.onAnchorSaved).not.toHaveBeenCalled();
+});
+
+
+test('bad restored height stays hidden and reports an alignment error', async () => {
+  jest.useFakeTimers();
+  const app = { ...props(), onAnchorError: jest.fn(), testSpot: { name: 'Harvard test spot', latitude: 0, longitude: 0, radius: 50, savedAt: 1, anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] } } };
+  const navigator = { viroAppProps: app, resolveCloudAnchor: jest.fn().mockResolvedValue({ success: true, anchor: { anchorId: 'cloud', position: [0, 0, -0.1], rotation: [0, 0, 0] } }), hostCloudAnchor: jest.fn() };
+  const view = render(<PlacementScene sceneNavigator={navigator} />);
+  await act(async () => fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3));
+  fireEvent(view.getByTestId('scene'), 'anchorFound', { anchorId: 'table', type: 'plane', position: [0, -0.6, -0.1], rotation: [0, 0, 0], alignment: 'Horizontal', width: 2, height: 2 });
+  expect(view.queryByTestId('plane')).toBeNull();
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('aligning');
+  act(() => jest.advanceTimersByTime(30000));
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
+  expect(app.onAnchorError).toHaveBeenCalledWith(expect.stringContaining('did not match'));
+  view.unmount(); jest.useRealTimers();
+});
+
+test('AR viewport is isolated in an absolute wrapper so the native library cannot push controls down', () => {
+  const view = render(<NativeSurfaceAR {...props()} />);
+  const navigator = view.getByTestId('navigator');
+  expect(view.getByTestId('native-ar-viewport').props.style).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 });
 });

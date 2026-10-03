@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import type { PersistentAnchor, TestSpot } from './testLocation';
 import type { StopId } from './content';
 
-export type SurfacePhase = 'scanning' | 'choose' | 'placed' | 'saved' | 'restored' | 'limited' | 'lost' | 'unsupported' | 'saving' | 'resolving' | 'anchorError';
+export type SurfacePhase = 'scanning' | 'choose' | 'placed' | 'saved' | 'restored' | 'aligning' | 'limited' | 'lost' | 'unsupported' | 'saving' | 'resolving' | 'anchorError';
 export type SurfaceARProps = {
   stopId: StopId;
   testSpot?: TestSpot | null;
@@ -32,8 +32,9 @@ export const persistentAnchorsEnabled = Constants.expoConfig?.extra?.surfaceAnch
 export const surfaceInstructions: Record<SurfacePhase, string> = {
   saving: 'Saving this AR spot. Slowly scan the surrounding surface.',
   resolving: 'Finding your saved tile. Scan the same surroundings slowly.',
+  aligning: 'Anchor found. Scan the original surface to verify the tile’s placement.',
   saved: 'Exact AR position saved. You can reopen the app and scan here to restore it.',
-  restored: 'Saved tile restored in its original position.',
+  restored: 'Saved tile aligned with the detected surface. Tap to open its story.',
   anchorError: 'Could not restore or save the exact AR position. Scan more and try again, or place the marker again.',
   scanning: 'Move slowly to scan the ground, a table, or a wall.',
   choose: 'Tap a highlighted surface to place the flat marker.',
