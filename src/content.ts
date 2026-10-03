@@ -17,5 +17,5 @@ export const layers: { id: LayerId; label: string; icon: 'landmark' | 'people' |
 export const harvardTestStop = {
   ...stops[0], title: 'Harvard test spot', category: 'Location test', year: 'Today',
   description: 'You are near your saved test location. Tap the red tile to explore this spot through AR.',
-  story: 'Welcome to your Harvard location test. This story is attached to the GPS spot you saved on your phone. The red tile is attached to the real surface you selected.',
+  story: 'Welcome to your Harvard location test. This story is attached to the GPS spot you saved on your phone. The floating red marker uses the global position you save in AR. GPS and compass accuracy may shift its placement.',
 };
