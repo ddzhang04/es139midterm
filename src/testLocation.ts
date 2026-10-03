@@ -1,6 +1,8 @@
 export type Point = { latitude: number; longitude: number };
 export type PersistentAnchor = { id: string; expiresAt: number; offset: [number, number, number]; surfaceAlignment?: 'Horizontal' | 'Vertical'; surfaceClassification?: string };
-export type TestSpot = Point & { name: string; radius: number; savedAt: number; anchor?: PersistentAnchor };
+export type GlobalPlacement = Point & { altitude: number | null; altitudeReference: 'WGS84'; rotation: [number, number, number]; scale: [number, number, number]; savedAt: number; horizontalAccuracy: number; altitudeAccuracy: number | null };
+export type LocationFix = Point & { accuracy: number | null; timestamp: number; altitude?: number | null; altitudeAccuracy?: number | null };
+export type TestSpot = Point & { name: string; radius: number; savedAt: number; anchor?: PersistentAnchor; placement?: GlobalPlacement };
 export const TEST_SPOT_KEY = 'historylens-harvard-test-spot';
 export function distanceMeters(a: Point, b: Point) {
   const rad = Math.PI / 180;
@@ -16,6 +18,9 @@ export function parseSpot(raw: string | null): TestSpot | null {
     if (!Number.isFinite(value.latitude) || Math.abs(value.latitude) > 90 || !Number.isFinite(value.longitude) || Math.abs(value.longitude) > 180 || value.name !== 'Harvard test spot' || value.radius !== 50 || !Number.isFinite(value.savedAt)) return null;
     const anchor = value.anchor;
     if (anchor && (typeof anchor.id !== 'string' || !anchor.id || !Number.isFinite(anchor.expiresAt) || !Array.isArray(anchor.offset) || anchor.offset.length !== 3 || !anchor.offset.every(Number.isFinite))) delete value.anchor;
+    const placement = value.placement;
+    const vector = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+    if (placement && (!Number.isFinite(placement.latitude) || Math.abs(placement.latitude) > 90 || !Number.isFinite(placement.longitude) || Math.abs(placement.longitude) > 180 || (placement.altitude !== null && !Number.isFinite(placement.altitude)) || placement.altitudeReference !== 'WGS84' || !vector(placement.rotation) || !vector(placement.scale) || placement.scale.some((n: number) => n <= 0) || !Number.isFinite(placement.savedAt) || !Number.isFinite(placement.horizontalAccuracy) || placement.horizontalAccuracy < 0 || (placement.altitudeAccuracy !== null && (!Number.isFinite(placement.altitudeAccuracy) || placement.altitudeAccuracy < 0)))) delete value.placement;
     return value;
   } catch { return null; }
 }

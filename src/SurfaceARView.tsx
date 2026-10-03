@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { NativeModules, Platform, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import type { PersistentAnchor, TestSpot } from './testLocation';
+import type { GlobalPlacement, LocationFix, PersistentAnchor, TestSpot } from './testLocation';
 import type { StopId } from './content';
 
-export type SurfacePhase = 'scanning' | 'choose' | 'placed' | 'saved' | 'restored' | 'aligning' | 'limited' | 'lost' | 'unsupported' | 'saving' | 'resolving' | 'anchorError';
+export type SurfacePhase = 'scanning' | 'choose' | 'placed' | 'saved' | 'restored' | 'aligning' | 'limited' | 'lost' | 'unsupported' | 'saving' | 'resolving' | 'anchorError' | 'globalWaiting' | 'globalPlaced' | 'globalSaved' | 'globalRestored';
 export type SurfaceARProps = {
   stopId: StopId;
   testSpot?: TestSpot | null;
+  locationFix?: LocationFix | null;
+  onPlacementSaved?: (placement: GlobalPlacement, savedAt: number) => Promise<void>;
   saveRequest?: number;
   restoreRequest?: number;
   onAnchorError?: (message: string) => void;
@@ -30,6 +32,10 @@ export const supportsSurfaceAR = Constants.executionEnvironment !== 'storeClient
 export const persistentAnchorsEnabled = Constants.expoConfig?.extra?.surfaceAnchorProvider === 'reactvision';
 
 export const surfaceInstructions: Record<SurfacePhase, string> = {
+  globalWaiting: 'Getting GPS and compass alignment. Move slowly with a clear view.',
+  globalPlaced: 'Floating marker placed. Tap Save global position to keep it after restarting.',
+  globalSaved: 'Global position saved. GPS and compass accuracy may shift its placement.',
+  globalRestored: 'Floating marker restored from global coordinates. Look around to find it.',
   saving: 'Saving this AR spot. Slowly scan the surrounding surface.',
   resolving: 'Finding your saved tile. Scan the same surroundings slowly.',
   aligning: 'Anchor found. Scan the original surface to verify the tile’s placement.',
@@ -55,7 +61,7 @@ export default function SurfaceARView(props: SurfaceARProps) {
     return () => { active = false; };
   }, []);
   if (supported !== true) return <View style={styles.waiting}><Text style={styles.text}>{supported === null ? 'Starting surface tracking…' : 'This device cannot run surface AR. Switch to the demo scene to explore.'}</Text></View>;
-  const NativeSurfaceAR = require('./SurfaceARScene').default as React.ComponentType<SurfaceARProps>;
+  const NativeSurfaceAR = (props.testSpot ? require('./GlobalARScene') : require('./SurfaceARScene')).default as React.ComponentType<SurfaceARProps>;
   return <NativeSurfaceAR {...props} />;
 }
 

@@ -3,14 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requireOptionalNativeModule } from 'expo';
 import Constants from 'expo-constants';
 import type * as Location from 'expo-location';
-import { PersistentAnchor, TestSpot, TEST_SPOT_KEY, parseSpot, proximity } from './testLocation';
+import { GlobalPlacement, LocationFix, PersistentAnchor, TestSpot, TEST_SPOT_KEY, parseSpot, proximity } from './testLocation';
 
 function locationAPI(): typeof Location {
   if (!requireOptionalNativeModule('ExpoLocation')) throw new Error('Install the latest HistoryLens development build to enable location tagging.');
   return require('expo-location') as typeof Location;
 }
 
-type Fix = { latitude: number; longitude: number; accuracy: number | null; timestamp: number };
+type Fix = LocationFix;
 export default function useTestLocation(active: boolean) {
   const [spot, setSpot] = useState<TestSpot | null>(null);
   const [fix, setFix] = useState<Fix | null>(null);
@@ -75,6 +75,12 @@ export default function useTestLocation(active: boolean) {
     await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify(next));
     if (record.current?.savedAt === savedAt) { record.current = next; setSpot(next); }
   }
+  async function savePlacement(placement: GlobalPlacement, savedAt: number) {
+    if (!record.current || record.current.savedAt !== savedAt) throw new Error('Test spot changed. Place and save the marker again.');
+    const next = { ...record.current, placement, anchor: undefined };
+    await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify(next));
+    if (record.current?.savedAt === savedAt) { record.current = next; setSpot(next); }
+  }
   async function clear() {
     const generation = ++operation.current; setBusy(false);
     const previous = record.current; record.current = null;
@@ -82,5 +88,5 @@ export default function useTestLocation(active: boolean) {
     catch { if (generation === operation.current) { record.current = previous; setError('Could not remove the saved spot. Try again.'); } }
   }
   const nearby = spot && fix ? proximity(spot, fix, now) : null;
-  return { spot, fix, busy, error, loaded, nearby, allowed: !spot || nearby?.state === 'nearby', useCurrentLocation, saveAnchor, clear };
+  return { spot, fix, busy, error, loaded, nearby, allowed: !spot || nearby?.state === 'nearby', useCurrentLocation, saveAnchor, savePlacement, clear };
 }

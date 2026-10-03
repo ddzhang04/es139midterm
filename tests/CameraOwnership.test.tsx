@@ -38,7 +38,7 @@ test('GPS drift keeps an unlocked tile and its AR session alive', async () => {
 });
 
 
-test('visual restoration reveals the saved tile even while GPS is uncertain', async () => {
+test('global restoration does not bypass GPS uncertainty before the spot unlocks', async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
   await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123, anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] } }));
@@ -50,8 +50,8 @@ test('visual restoration reveals the saved tile even while GPS is uncertain', as
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot?.anchor?.id).toBe('saved'));
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
-  act(() => screen.getByTestId('surface-session').props.onPhaseChange('restored'));
-  await waitFor(() => expect(screen.getByTestId('surface-session').props.visible).toBe(true));
+  act(() => screen.getByTestId('surface-session').props.onPhaseChange('globalRestored'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
   act(() => screen.getByTestId('surface-session').props.onPhaseChange('limited'));
-  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
 });
