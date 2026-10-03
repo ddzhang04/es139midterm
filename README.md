@@ -15,6 +15,8 @@ npm run start:native
 
 EAS will guide you through project setup and signing. A cloud build for a physical iPhone requires an Apple Developer membership and device registration. Install the resulting development app, then open its development-server QR link. Android requires an ARCore-compatible device; iPhone requires ARKit support.
 
+For a standalone iPhone prototype, run `npm run build:ios:preview` and install the internal-distribution build. It includes its JavaScript bundle, so it opens without Metro or a development-server tunnel. Both native build profiles use the EAS development environment for provider configuration.
+
 Move slowly across a well-lit textured ground, tabletop, or wall. Tap a highlighted surface to place a 32 × 24 cm flat red tile, then tap it to show a rectangular information card above the anchor. The card faces the camera; the tile follows the detected surface. Use **Place marker again** to reposition. Content selection switches between red object/person tiles and blue structure tiles.
 
 For the camera and screen-marker fallback in Expo Go:

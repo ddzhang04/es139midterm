@@ -9,6 +9,7 @@
     "android": "expo run:android",
     "start:native": "expo start --dev-client",
     "build:ios": "npx eas-cli build --platform ios --profile development",
+    "build:ios:preview": "npx eas-cli build --platform ios --profile preview",
     "build:android": "npx eas-cli build --platform android --profile development",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
