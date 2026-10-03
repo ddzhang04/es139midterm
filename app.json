@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "HistoryLens",
+    "slug": "historylens",
+    "scheme": "historylens",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.historylens.prototype",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos",
+        "NSCameraUsageDescription": "Allow HistoryLens to anchor historical markers to surfaces through your camera.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use your microphone",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.historylens.prototype",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow HistoryLens to show historical markers over your camera view.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-font",
+      "expo-dev-client",
+      [
+        "@reactvision/react-viro",
+        {
+          "android": {
+            "xRMode": "AR"
+          },
+          "provider": "none",
+          "ios": {
+            "cameraUsagePermission": "Allow HistoryLens to anchor historical markers to surfaces through your camera."
+          }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow HistoryLens to tag your test spot and unlock AR stories near your current location."
+        }
+      ]
+    ],
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "663160f5-e04a-46f3-b2ad-b82fe599ce9e"
+      }
+    },
+    "owner": "daanielzhaang"
+  }
+}
