@@ -4,6 +4,7 @@ import { ViroARSceneNavigator, ViroARScene, ViroARPlaneSelector, ViroNode, ViroQ
 import type { ViroAnchor } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import { harvardTestStop, stops } from './content';
 import { surfaceOffset } from './anchorPlacement';
+import { cloudAnchorError } from './cloudAnchorErrors';
 import { persistentAnchorsEnabled } from './SurfaceARView';
 import type { ViroCloudAnchor } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import type { SurfaceARProps } from './SurfaceARView';
@@ -15,7 +16,7 @@ ViroMaterials.createMaterials({
   HistoryLensCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
 });
 
-type SceneProps = { sceneNavigator: { viroAppProps: SurfaceARProps; hostCloudAnchor: (id: string, days: number) => Promise<{ success: boolean; cloudAnchorId?: string }>; resolveCloudAnchor: (id: string) => Promise<{ success: boolean; anchor?: ViroCloudAnchor }> } };
+type SceneProps = { sceneNavigator: { viroAppProps: SurfaceARProps; hostCloudAnchor: (id: string, days: number) => Promise<{ success: boolean; cloudAnchorId?: string; state?: string; error?: string }>; resolveCloudAnchor: (id: string) => Promise<{ success: boolean; anchor?: ViroCloudAnchor; state?: string; error?: string }> } };
 
 export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps) {
   const app = sceneNavigator.viroAppProps;
@@ -27,36 +28,42 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   const operation = useRef(0);
   const pending = useRef(false);
   const restored = useRef(false);
+  const savedPlacement = useRef(false);
+  const failed = useRef(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [resolved, setResolved] = useState<ViroCloudAnchor | null>(null);
   const latest = useRef(app); latest.current = app;
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; operation.current++; }, []);
 
   useEffect(() => {
-    operation.current++; pending.current = false; restored.current = false; setResolved(null);
+    operation.current++; pending.current = false; restored.current = false; savedPlacement.current = false; failed.current = false; setResolved(null);
     selector.current?.reset();
     selectedAnchor.current = null;
     app.onPhaseChange(surfaces.current.size > 0 ? 'choose' : 'scanning');
-  }, [app.revision, app.testSpot?.savedAt]);
+  }, [app.revision, app.testSpot?.savedAt, app.restoreRequest]);
 
   useEffect(() => {
-    if (!persistentAnchorsEnabled || !app.testSpot?.anchor || app.revision > 0 || selectedAnchor.current) return;
+    // React effects can run before the native AR view has a usable session.
+    // Start resolving after the first normal tracking event instead.
+    if (!sessionReady || !persistentAnchorsEnabled || !app.testSpot?.anchor || app.revision > 0 || selectedAnchor.current) return;
     const saved = app.testSpot.anchor;
-    if (saved.expiresAt <= Date.now()) { app.onPhaseChange('anchorError'); return; }
+    if (saved.expiresAt <= Date.now()) { failed.current = true; app.onPhaseChange('anchorError'); app.onAnchorError?.('The saved anchor has expired. Place and save a new tile.'); return; }
     let active = true;
     const generation = ++operation.current;
     pending.current = true;
+    failed.current = false;
     app.onPhaseChange('resolving');
     sceneNavigator.resolveCloudAnchor(saved.id).then(result => {
       if (!active || !mounted.current || generation !== operation.current) return;
-      if (!result.success || !result.anchor) throw new Error('Anchor unavailable');
+      if (!result.success || !result.anchor) throw result;
       selectedAnchor.current = result.anchor.anchorId; restored.current = true;
       offset.current = saved.offset; setResolved(result.anchor);
-      latest.current.onPhaseChange('placed');
-    }).catch(() => { if (active && mounted.current && generation === operation.current) latest.current.onPhaseChange('anchorError'); })
+      latest.current.onPhaseChange('restored');
+    }).catch(cause => { if (active && mounted.current && generation === operation.current) { failed.current = true; latest.current.onPhaseChange('anchorError'); latest.current.onAnchorError?.(cloudAnchorError(cause, 'restore')); } })
       .finally(() => { if (generation === operation.current) pending.current = false; });
     return () => { active = false; };
-  }, [app.testSpot?.anchor?.id, app.testSpot?.savedAt, app.revision]);
+  }, [sessionReady, app.testSpot?.anchor?.id, app.testSpot?.savedAt, app.revision, app.restoreRequest]);
 
   useEffect(() => {
     if (!app.saveRequest || !persistentAnchorsEnabled || !app.testSpot || !selectedAnchor.current || !app.onAnchorSaved || pending.current || restored.current) return;
@@ -64,13 +71,14 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     const spotTime = app.testSpot.savedAt;
     const placementOffset = offset.current;
     pending.current = true;
+    failed.current = false;
     app.onPhaseChange('saving');
     sceneNavigator.hostCloudAnchor(selectedAnchor.current, 1).then(async result => {
       if (!mounted.current || generation !== operation.current) return;
-      if (!result.success || !result.cloudAnchorId) throw new Error('Anchor not saved');
+      if (!result.success || !result.cloudAnchorId) throw result;
       await app.onAnchorSaved!({ id: result.cloudAnchorId, expiresAt: Date.now() + 86400000, offset: placementOffset }, spotTime);
-      if (mounted.current && generation === operation.current) latest.current.onPhaseChange('placed');
-    }).catch(() => { if (mounted.current && generation === operation.current) latest.current.onPhaseChange('anchorError'); })
+      if (mounted.current && generation === operation.current) { savedPlacement.current = true; latest.current.onPhaseChange('saved'); }
+    }).catch(cause => { if (mounted.current && generation === operation.current) { failed.current = true; latest.current.onPhaseChange('anchorError'); latest.current.onAnchorError?.(cloudAnchorError(cause, 'save')); } })
       .finally(() => { if (generation === operation.current) pending.current = false; });
   }, [app.saveRequest]);
 
@@ -110,8 +118,10 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     onAnchorUpdated={forwardUpdated}
     onAnchorRemoved={forwardRemoved}
     onTrackingUpdated={state => {
+      if (state === ViroTrackingStateConstants.TRACKING_NORMAL) setSessionReady(true);
+      if (pending.current || failed.current) return;
       if (state !== ViroTrackingStateConstants.TRACKING_NORMAL) app.onPhaseChange('limited');
-      else if (!pending.current) app.onPhaseChange(selectedAnchor.current ? 'placed' : surfaces.current.size > 0 ? 'choose' : 'scanning');
+      else app.onPhaseChange(restored.current ? 'restored' : savedPlacement.current ? 'saved' : selectedAnchor.current ? 'placed' : surfaces.current.size > 0 ? 'choose' : 'scanning');
     }}
   >
     <ViroNode visible={!resolved}><ViroARPlaneSelector
@@ -123,8 +133,8 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
       material="HistoryLensSurface"
       useActualShape
       hideOverlayOnSelection
-      onPlaneDetected={anchor => { surfaces.current.add(anchor.anchorId); if (!selectedAnchor.current && !pending.current) app.onPhaseChange('choose'); return true; }}
-      onPlaneSelected={(anchor, tap) => { selectedAnchor.current = anchor.anchorId; offset.current = tap ? surfaceOffset(tap, anchor.position, anchor.rotation) : [0, 0, 0]; app.onPhaseChange('placed'); }}
+      onPlaneDetected={anchor => { surfaces.current.add(anchor.anchorId); if (!selectedAnchor.current && !pending.current && !failed.current) app.onPhaseChange('choose'); return true; }}
+      onPlaneSelected={(anchor, tap) => { failed.current = false; savedPlacement.current = false; selectedAnchor.current = anchor.anchorId; offset.current = tap ? surfaceOffset(tap, anchor.position, anchor.rotation) : [0, 0, 0]; app.onPhaseChange('placed'); }}
     >
       {tile}
     </ViroARPlaneSelector></ViroNode>

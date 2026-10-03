@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import App from '../App';
+import { TEST_SPOT_KEY } from '../src/testLocation';
 
 const mockSessionStarted = jest.fn();
 const mockSessionStopped = jest.fn();
@@ -34,4 +35,23 @@ test('GPS drift keeps an unlocked tile and its AR session alive', async () => {
   act(() => callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 5 }, timestamp: Date.now() } as Location.LocationObject));
   await waitFor(() => expect(screen.getByTestId('surface-session').props.visible).toBe(true));
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
+});
+
+
+test('visual restoration reveals the saved tile even while GPS is uncertain', async () => {
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123, anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] } }));
+  jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_options, callback) => {
+    callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 }, timestamp: Date.now() } as Location.LocationObject);
+    return { remove: jest.fn() };
+  });
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot?.anchor?.id).toBe('saved'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
+  act(() => screen.getByTestId('surface-session').props.onPhaseChange('restored'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.visible).toBe(true));
+  act(() => screen.getByTestId('surface-session').props.onPhaseChange('limited'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
 });

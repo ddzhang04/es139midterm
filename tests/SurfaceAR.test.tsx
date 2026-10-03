@@ -72,15 +72,19 @@ test('cloud hosting saves the tapped surface offset and restoration uses the ret
   fireEvent(view.getByTestId('selector'), 'planeSelected', anchor, [1.2, 0, 1.3]);
   await act(async () => view.rerender(<PlacementScene sceneNavigator={{ ...navigator, viroAppProps: { ...app, saveRequest: 1 } }} />));
   expect(hostCloudAnchor).toHaveBeenCalledWith('plane', 1);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('saved');
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('saved');
   expect(app.onAnchorSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'saved-plane', offset: [expect.closeTo(0.2), 0, expect.closeTo(0.3)] }), 123);
   view.unmount();
   const saved = { id: 'saved-plane', expiresAt: Date.now() + 86400000, offset: [0.2, 0, 0.3] };
   const resolveCloudAnchor = jest.fn().mockResolvedValue({ success: true, anchor: { anchorId: 'restored', position: [3, 0, -2], rotation: [0, 45, 0] } });
   const restoredApp = { ...props(), testSpot: { ...spot, anchor: saved } };
   const restored = render(<PlacementScene sceneNavigator={{ viroAppProps: restoredApp, resolveCloudAnchor, hostCloudAnchor }} />);
-  await act(async () => {});
+  expect(resolveCloudAnchor).not.toHaveBeenCalled();
+  await act(async () => fireEvent(restored.getByTestId('scene'), 'trackingUpdated', 3));
   expect(resolveCloudAnchor).toHaveBeenCalledWith('saved-plane');
-  expect(restoredApp.onPhaseChange).toHaveBeenLastCalledWith('placed');
+  expect(restoredApp.onPhaseChange).toHaveBeenLastCalledWith('restored');
   expect(restored.getAllByTestId('node').some(node => JSON.stringify(node.props.position) === '[3,0,-2]' && JSON.stringify(node.props.rotation) === '[0,45,0]')).toBe(true);
 });
 
@@ -88,10 +92,41 @@ test('cloud errors and expired anchors report failure without inventing a placem
   const app = { ...props(), testSpot: { name: 'Harvard test spot', latitude: 0, longitude: 0, radius: 50, savedAt: 1, anchor: { id: 'expired', expiresAt: 1, offset: [0, 0, 0] } } };
   const navigator = { viroAppProps: app, resolveCloudAnchor: jest.fn(), hostCloudAnchor: jest.fn() };
   const view = render(<PlacementScene sceneNavigator={navigator} />);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
   expect(navigator.resolveCloudAnchor).not.toHaveBeenCalled();
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
   const resolveCloudAnchor = jest.fn().mockRejectedValue(new Error('Offline'));
   await act(async () => view.rerender(<PlacementScene sceneNavigator={{ ...navigator, resolveCloudAnchor, viroAppProps: { ...app, testSpot: { ...app.testSpot, savedAt: 2, anchor: { ...app.testSpot.anchor, expiresAt: Date.now() + 100000 } } } }} />));
   expect(resolveCloudAnchor).toHaveBeenCalled();
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
+});
+
+
+test('a restore failure stays visible through tracking updates and can be retried', async () => {
+  const app = { ...props(), onAnchorError: jest.fn(), restoreRequest: 0, testSpot: { name: 'Harvard test spot', latitude: 0, longitude: 0, radius: 50, savedAt: 1, anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] } } };
+  const resolveCloudAnchor = jest.fn().mockResolvedValueOnce({ success: false, state: 'ErrorNotAuthorized' }).mockResolvedValueOnce({ success: true, anchor: { anchorId: 'restored', position: [1, 0, -1], rotation: [0, 0, 0] } });
+  const navigator = { viroAppProps: app, resolveCloudAnchor, hostCloudAnchor: jest.fn() };
+  const view = render(<PlacementScene sceneNavigator={navigator} />);
+  await act(async () => fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3));
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
+  expect(app.onAnchorError).toHaveBeenCalledWith(expect.stringContaining('credentials'));
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  fireEvent(view.getByTestId('selector'), 'planeDetected', { anchorId: 'new-plane' });
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
+  await act(async () => view.rerender(<PlacementScene sceneNavigator={{ ...navigator, viroAppProps: { ...app, restoreRequest: 1 } }} />));
+  expect(resolveCloudAnchor).toHaveBeenCalledTimes(2);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('restored');
+});
+
+test('a failed cloud save cannot be disguised as a placed or saved marker', async () => {
+  const app = { ...props(), onAnchorError: jest.fn(), saveRequest: 0, onAnchorSaved: jest.fn(), testSpot: { name: 'Harvard test spot', latitude: 0, longitude: 0, radius: 50, savedAt: 1 } };
+  const hostCloudAnchor = jest.fn().mockResolvedValue({ success: false, state: 'ErrorHostingDatasetProcessingFailed' });
+  const navigator = { viroAppProps: app, hostCloudAnchor, resolveCloudAnchor: jest.fn() };
+  const view = render(<PlacementScene sceneNavigator={navigator} />);
+  fireEvent(view.getByTestId('selector'), 'planeSelected', { anchorId: 'plane' });
+  await act(async () => view.rerender(<PlacementScene sceneNavigator={{ ...navigator, viroAppProps: { ...app, saveRequest: 1 } }} />));
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('anchorError');
+  expect(app.onAnchorError).toHaveBeenCalledWith(expect.stringContaining('Scan more'));
+  expect(app.onAnchorSaved).not.toHaveBeenCalled();
 });

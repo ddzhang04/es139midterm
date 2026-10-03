@@ -1,9 +1,10 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import App from '../App';
 import { TEST_SPOT_KEY, distanceMeters, parseSpot, proximity } from '../src/testLocation';
+import useTestLocation from '../src/useTestLocation';
 import { surfaceOffset } from '../src/anchorPlacement';
 
 function openDev() { if (!screen.queryByText('Developer Settings')) fireEvent.press(screen.getByLabelText('Open developer settings')); }
@@ -91,4 +92,18 @@ test('location tools are hidden behind the corner developer menu', async () => {
   expect(screen.getByText('Use my current location')).toBeTruthy();
   fireEvent.press(screen.getByLabelText('Close panel'));
   expect(screen.queryByText('Use my current location')).toBeNull();
+});
+
+
+test('a hosted anchor ID and tap offset survive a full location-hook restart', async () => {
+  const spot = { name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123 };
+  const anchor = { id: 'cloud-anchor', expiresAt: Date.now() + 86400000, offset: [0.2, 0, -0.4] as [number, number, number] };
+  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify(spot));
+  const first = renderHook(() => useTestLocation(false));
+  await waitFor(() => expect(first.result.current.loaded).toBe(true));
+  await act(async () => first.result.current.saveAnchor(anchor, spot.savedAt));
+  first.unmount();
+  const second = renderHook(() => useTestLocation(false));
+  await waitFor(() => expect(second.result.current.loaded).toBe(true));
+  expect(second.result.current.spot?.anchor).toEqual(anchor);
 });
