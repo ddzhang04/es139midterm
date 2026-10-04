@@ -433,7 +433,7 @@ export default function HistoryLens() {
                     <View style={s.hintCard}>
                       <Text accessibilityLiveRegion="polite" style={s.hintText}>
                         {selected
-                          ? 'AR information open. Tap × on the panel to close.'
+                          ? 'Card pinned where you opened it. Tap × to close.'
                           : !markerLayerVisible
                             ? 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
                             : markerOpacity === 0

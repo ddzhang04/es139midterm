@@ -113,6 +113,7 @@ export default function ARInfoPanel({
   speaking = false,
   rotation = [0, 0, 0],
   onExpand,
+  position = [0, 0, 0],
 }: {
   detail: (typeof stops)[number];
   onClose: () => void;
@@ -120,14 +121,16 @@ export default function ARInfoPanel({
   speaking?: boolean;
   rotation?: Vector3;
   onExpand?: () => void;
+  position?: Vector3;
 }) {
   const [page, setPage] = useState(0);
   // Face the user once when opened, then keep the world-space orientation fixed.
   const [lockedRotation] = useState<Vector3>(() => [...rotation]);
+  const [lockedPosition] = useState<Vector3>(() => [...position]);
   const pages = [...storyPages(detail.description), ...storyPages(detail.story)];
   const index = Math.min(page, pages.length - 1);
   return (
-    <ViroNode position={[0, 0, 0]} rotation={lockedRotation} highAccuracyEvents={false}>
+    <ViroNode position={lockedPosition} rotation={lockedRotation} highAccuracyEvents={false}>
       <ViroQuad
         width={1.12}
         height={onExpand ? 1.16 : 0.96}

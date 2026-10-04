@@ -1,5 +1,5 @@
 import useARSelection from './useARSelection';
-import { panelFacingRotation, useARCameraPosition } from './arPanelFacing';
+import { readingPanelPose, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -131,6 +131,16 @@ export function GlobalPlacementScene(
   const savedTransform = app.revision === 0 ? app.testSpot?.placement : null;
   const markerDistance = point ? Math.hypot(...point.map((v, i) => v - facing.position[i])) : 0;
   const tapRadius = Math.max(0.34, Math.min(1.2, markerDistance * 0.14));
+  const readingPose =
+    point && camera.current
+      ? readingPanelPose(
+          camera.current.position,
+          camera.current.forward,
+          point,
+          savedTransform?.rotation,
+          savedTransform?.scale,
+        )
+      : undefined;
   return (
     <ViroARScene
       onTrackingUpdated={(state) => {
@@ -204,11 +214,8 @@ export function GlobalPlacementScene(
               onListen={app.onListen}
               speaking={app.speaking}
               onExpand={app.onExpand}
-              rotation={panelFacingRotation(
-                facing.position,
-                point,
-                savedTransform?.rotation || [0, 0, 0],
-              )}
+              rotation={readingPose?.rotation}
+              position={readingPose?.position}
             />
           )}
         </ViroNode>

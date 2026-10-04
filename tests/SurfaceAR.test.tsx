@@ -84,7 +84,7 @@ test('round anchored marker opens a world-space rectangle and reposition resets 
   expect(
     view
       .getAllByTestId('node')
-      .some((node) => node.props.rotation && node.props.position?.every((v: number) => v === 0)),
+      .some((node) => node.props.rotation && node.props.highAccuracyEvents === false),
   ).toBe(true);
   const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.49)!;
   fireEvent(close.findByProps({ testID: 'quad' }), 'click');

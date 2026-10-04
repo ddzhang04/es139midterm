@@ -1,5 +1,5 @@
 import useARSelection from './useARSelection';
-import { panelFacingRotation, useARCameraPosition } from './arPanelFacing';
+import { readingPanelPose, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -59,6 +59,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   const stop = app.testSpot ? harvardTestStop : stops.find((item) => item.id === app.stopId)!;
   const selection = useARSelection(app, stop.id);
   const facing = useARCameraPosition();
+  const cameraForward = useRef<[number, number, number]>([0, 0, -1]);
   const offset = useRef<[number, number, number]>([0, 0, 0]);
   const operation = useRef(0);
   const pending = useRef(false);
@@ -276,6 +277,12 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     parentPlane?.position || [0, 0, 0],
     parentRotation,
   );
+  const readingPose = readingPanelPose(
+    facing.position,
+    cameraForward.current,
+    panelPoint,
+    parentRotation,
+  );
   const tile = (
     <ViroNode visible={app.visible} opacity={app.opacity}>
       <ViroSphere
@@ -307,7 +314,8 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
           onListen={app.onListen}
           speaking={app.speaking}
           onExpand={app.onExpand}
-          rotation={panelFacingRotation(facing.position, panelPoint, parentRotation)}
+          rotation={readingPose.rotation}
+          position={readingPose.position}
         />
       )}
     </ViroNode>
@@ -315,7 +323,10 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
 
   return (
     <ViroARScene
-      onCameraTransformUpdate={(transform) => facing.update(transform.position)}
+      onCameraTransformUpdate={(transform) => {
+        cameraForward.current = transform.forward;
+        facing.update(transform.position);
+      }}
       anchorDetectionTypes={['PlanesHorizontal', 'PlanesVertical']}
       onAnchorFound={forwardFound}
       onAnchorUpdated={forwardUpdated}

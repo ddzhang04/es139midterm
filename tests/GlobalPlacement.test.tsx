@@ -7,7 +7,7 @@ import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
 import { harvardTestStop } from '../src/content';
 import ARInfoPanel, { storyPages } from '../src/components/ARInfoPanel';
-import { panelFacingRotation } from '../src/arPanelFacing';
+import { panelFacingRotation, readingPanelPose } from '../src/arPanelFacing';
 import { surfaceWorldPoint } from '../src/anchorPlacement';
 import type { SurfaceARProps } from '../src/SurfaceARView';
 jest.mock('@reactvision/react-viro', () => {
@@ -237,10 +237,8 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(text(harvardTestStop.description)).toBeTruthy();
   fireEvent(buttonAt(0, -0.49), 'click');
   expect(app.onExpand).toHaveBeenCalledTimes(1);
-  const panel = view
-    .getAllByTestId('node')
-    .find((node) => node.props.position?.every((v: number) => v === 0) && node.props.rotation)!;
-  expect(panel.props.position).toEqual([0, 0, 0]);
+  const panel = view.getAllByTestId('node')[1];
+  [0, -0.1, 0].forEach((v, i) => expect(panel.props.position[i]).toBeCloseTo(v));
   expect(panel.props.transformBehaviors).toBeUndefined();
   expect(view.getAllByTestId('text').every((text) => text.props.highAccuracyEvents === false)).toBe(
     true,
@@ -270,16 +268,43 @@ test('red box expands a world-space information panel with story pages, audio, a
 test('an open AR panel keeps its initial orientation as the camera moves', () => {
   const close = jest.fn();
   const view = render(
-    <ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[0, 20, 0]} />,
+    <ARInfoPanel
+      detail={harvardTestStop}
+      onClose={close}
+      rotation={[0, 20, 0]}
+      position={[1, 2, 3]}
+    />,
   );
-  view.rerender(<ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[10, 60, 5]} />);
+  view.rerender(
+    <ARInfoPanel
+      detail={harvardTestStop}
+      onClose={close}
+      rotation={[10, 60, 5]}
+      position={[4, 5, 6]}
+    />,
+  );
   expect(view.getAllByTestId('node')[0].props.rotation).toEqual([0, 20, 0]);
-  expect(view.getAllByTestId('node')[0].props.position).toEqual([0, 0, 0]);
+  expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 3]);
   view.unmount();
   const reopened = render(
     <ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[10, 60, 5]} />,
   );
   expect(reopened.getAllByTestId('node')[0].props.rotation).toEqual([10, 60, 5]);
+});
+
+test('reading opens two metres ahead at eye level independently of the GPS marker', () => {
+  const marker: [number, number, number] = [50, 0, -40];
+  const parent: [number, number, number] = [0, 30, 0];
+  const pose = readingPanelPose([1, 2, 3], [0, -0.8, -0.6], marker, parent, [2, 2, 2]);
+  const world = surfaceWorldPoint(
+    pose.position.map((v) => v * 2) as [number, number, number],
+    marker,
+    parent,
+  );
+  [1, 1.9, 1].forEach((v, i) => expect(world[i]).toBeCloseTo(v));
+  const localUp = surfaceWorldPoint([0, 1, 0], [0, 0, 0], pose.rotation);
+  const worldUp = surfaceWorldPoint(localUp, [0, 0, 0], parent);
+  [0, 1, 0].forEach((v, i) => expect(worldUp[i]).toBeCloseTo(v));
 });
 
 test('the panel faces the camera without native billboarding, including rotated parents', () => {
@@ -291,7 +316,10 @@ test('the panel faces the camera without native billboarding, including rotated 
     const rotation = panelFacingRotation([3, 2, 4], [0, 0, 0], parent);
     const localNormal = surfaceWorldPoint([0, 0, 1], [0, 0, 0], rotation);
     const worldNormal = surfaceWorldPoint(localNormal, [0, 0, 0], parent);
-    [3, 2, 4].forEach((v, i) => expect(worldNormal[i]).toBeCloseTo(v / Math.sqrt(29)));
+    [3, 0, 4].forEach((v, i) => expect(worldNormal[i]).toBeCloseTo(v / 5));
+    const localUp = surfaceWorldPoint([0, 1, 0], [0, 0, 0], rotation);
+    const worldUp = surfaceWorldPoint(localUp, [0, 0, 0], parent);
+    [0, 1, 0].forEach((v, i) => expect(worldUp[i]).toBeCloseTo(v));
   }
   expect(panelFacingRotation([0, 0, 0], [0, 0, 0], [0, 0, 0])).toEqual([0, 0, 0]);
 });
