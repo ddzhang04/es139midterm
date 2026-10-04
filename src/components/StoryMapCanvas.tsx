@@ -6,6 +6,7 @@ import type { Region } from 'react-native-maps';
 import { usableFix, type LocationFix, type TestSpot, type Point } from '../testLocation';
 import { RoundButton } from '../ui/primitives';
 import { colors as C } from '../ui/theme';
+import { campusPlaces, harvardMapRegion, type CampusPlace } from '../mapPlaces';
 
 export function nativeMapsAvailable() {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
@@ -24,11 +25,13 @@ export default function StoryMapCanvas({
   spot,
   fix,
   onSelect,
+  onSelectPlace,
   onRequestLocation,
 }: {
   spot?: TestSpot | null;
   fix?: LocationFix | null;
   onSelect: () => void;
+  onSelectPlace?: (place: CampusPlace) => void;
   onRequestLocation: () => void;
 }) {
   const map = useRef<MapView>(null);
@@ -46,9 +49,9 @@ export default function StoryMapCanvas({
     } else if (point && focused.current !== savedKey) {
       map.current?.animateToRegion(regionFor(point), 350);
       focused.current = savedKey;
-    } else if (!point && precise && !focused.current) {
-      map.current?.animateToRegion(regionFor(fix), 350);
-      focused.current = 'user';
+    } else if (!point && !focused.current) {
+      map.current?.animateToRegion(harvardMapRegion, 350);
+      focused.current = 'harvard';
     }
   }, [ready, savedKey, fix]);
   if (!nativeMapsAvailable())
@@ -79,19 +82,24 @@ export default function StoryMapCanvas({
         ref={map}
         testID="native-story-map"
         style={StyleSheet.absoluteFill}
-        initialRegion={
-          point
-            ? regionFor(point)
-            : precise
-              ? regionFor(fix)
-              : { latitude: 0, longitude: 0, latitudeDelta: 100, longitudeDelta: 160 }
-        }
+        initialRegion={point ? regionFor(point) : harvardMapRegion}
         onMapReady={() => setReady(true)}
         showsCompass
         showsScale
         showsPointsOfInterests={false}
         rotateEnabled={false}
       >
+        {campusPlaces.map((place) => (
+          <Marker
+            key={place.id}
+            identifier={place.id}
+            coordinate={{ latitude: place.latitude, longitude: place.longitude }}
+            title={place.title}
+            description="Tap for location details"
+            pinColor="#E75049"
+            onPress={() => onSelectPlace?.(place)}
+          />
+        ))}
         {point && (
           <Marker
             identifier="saved-story"
@@ -124,6 +132,11 @@ export default function StoryMapCanvas({
         )}
       </NativeMap>
       <View style={styles.locate}>
+        <RoundButton
+          icon="map"
+          label="Show Harvard locations"
+          onPress={() => map.current?.animateToRegion(harvardMapRegion, 350)}
+        />
         <RoundButton icon="locate" label="Center map on my location" onPress={locate} />
       </View>
     </View>
@@ -131,7 +144,7 @@ export default function StoryMapCanvas({
 }
 const styles = StyleSheet.create({
   canvas: { flex: 1, minHeight: 180 },
-  locate: { position: 'absolute', right: 16, top: 16 },
+  locate: { position: 'absolute', right: 16, top: 16, gap: 10 },
   locationDot: {
     width: 20,
     height: 20,

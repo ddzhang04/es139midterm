@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
-import { UIManager } from 'react-native';
+import { Linking, UIManager } from 'react-native';
 import SiteMapScreen from '../src/screens/SiteMapScreen';
 import type { TestSpot } from '../src/testLocation';
 const mockAnimate = jest.fn();
@@ -60,7 +60,7 @@ test('native map uses the saved AR coordinates and a real location dot, not demo
     longitude: -71.1169,
   });
   const pins = view.getAllByTestId('map-marker');
-  expect(pins).toHaveLength(2);
+  expect(pins).toHaveLength(4);
   const story = pins.find((pin) => pin.props.identifier === 'saved-story')!;
   expect(story.props.coordinate).toMatchObject({ latitude: 42.3745, longitude: -71.1169 });
   fireEvent(story, 'press');
@@ -85,9 +85,9 @@ test('GPS updates do not steal map gestures, and locate explicitly recenters', (
   );
 });
 
-test('empty map has no invented stories; uncertain location requests access without saving a spot', () => {
+test('campus pins remain available without a saved spot or precise GPS', () => {
   const view = render(<SiteMapScreen {...props} fix={{ ...fix(), accuracy: 100 }} />);
-  expect(view.queryAllByTestId('map-marker')).toHaveLength(0);
+  expect(view.queryAllByTestId('map-marker')).toHaveLength(2);
   fireEvent.press(view.getByLabelText('Center map on my location'));
   expect(props.onRequestLocation).toHaveBeenCalledTimes(1);
   fireEvent.press(view.getByText('Add a saved location'));
@@ -99,4 +99,22 @@ test('old builds show an actionable message instead of mounting missing native m
   const view = render(<SiteMapScreen {...props} spot={spot} />);
   expect(view.queryByTestId('native-story-map')).toBeNull();
   expect(view.getByText('Native map needs an updated app')).toBeTruthy();
+});
+
+test('both Harvard pins open their own location cards and courtyard directions', async () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const view = render(<SiteMapScreen {...props} spot={spot} fix={fix()} />);
+  const marker = (id: string) =>
+    view.getAllByTestId('map-marker').find((pin) => pin.props.identifier === id)!;
+  fireEvent(marker('harvard-science-center'), 'press');
+  expect(view.getByText('Harvard Science Center')).toBeTruthy();
+  expect(view.queryByText('Old Town Hall')).toBeNull();
+  fireEvent(marker('quincy-house-courtyard'), 'press');
+  expect(view.getByText('Quincy House courtyard')).toBeTruthy();
+  expect(view.queryByText('Harvard Science Center')).toBeNull();
+  fireEvent.press(view.getByText('Walking directions'));
+  expect(open).toHaveBeenCalledWith(expect.stringContaining('42.37072,-71.1169'));
+  fireEvent(marker('saved-story'), 'press');
+  expect(view.getByText('Old Town Hall')).toBeTruthy();
+  expect(view.getByText('Explore in AR')).toBeTruthy();
 });

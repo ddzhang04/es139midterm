@@ -1,10 +1,11 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import StoryMapCanvas from '../components/StoryMapCanvas';
 import { harvardTestStop, stops, type StopId } from '../content';
 import { distanceMeters, usableFix, type LocationFix, type TestSpot } from '../testLocation';
 import { Button, Header } from '../ui/primitives';
 import { colors as C } from '../ui/theme';
+import type { CampusPlace } from '../mapPlaces';
 
 type Props = {
   width: number;
@@ -32,7 +33,23 @@ export default function SiteMapScreen({
   onRequestLocation,
   onAddLocation,
 }: Props) {
-  const point = spot?.placement || spot;
+  const [selectedPlace, setSelectedPlace] = useState<CampusPlace | null>(null);
+  const [directionsError, setDirectionsError] = useState('');
+  const point = selectedPlace || spot?.placement || spot;
+  async function directions() {
+    if (!selectedPlace) return;
+    setDirectionsError('');
+    const coordinates = `${selectedPlace.latitude},${selectedPlace.longitude}`;
+    const url =
+      Platform.OS === 'ios'
+        ? `https://maps.apple.com/?daddr=${coordinates}&dirflg=w`
+        : `https://www.google.com/maps/dir/?api=1&destination=${coordinates}&travelmode=walking`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setDirectionsError('Could not open directions. Try again.');
+    }
+  }
   const precise = usableFix(fix);
   const distance = point && precise ? distanceMeters(point, fix) : null;
   return (
@@ -41,12 +58,41 @@ export default function SiteMapScreen({
       <StoryMapCanvas
         spot={spot}
         fix={fix}
-        onSelect={() => onSelect('gun')}
+        onSelect={() => {
+          setSelectedPlace(null);
+          setDirectionsError('');
+          onSelect('gun');
+        }}
+        onSelectPlace={(place) => {
+          setSelectedPlace(place);
+          setDirectionsError('');
+        }}
         onRequestLocation={onRequestLocation}
       />
       <ScrollView style={styles.sheet} contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>{spot ? 'SAVED STORY' : 'DISCOVER YOUR SURROUNDINGS'}</Text>
-        {spot ? (
+        <Text style={styles.eyebrow}>
+          {selectedPlace ? 'HARVARD LOCATION' : spot ? 'SAVED STORY' : 'DISCOVER YOUR SURROUNDINGS'}
+        </Text>
+        {selectedPlace ? (
+          <>
+            <Text style={styles.title}>{selectedPlace.title}</Text>
+            <Text style={styles.body}>{selectedPlace.description}</Text>
+            {distance !== null && (
+              <Text style={styles.badge}>
+                {distance < 1000
+                  ? `${Math.round(distance)} m away`
+                  : `${(distance / 1000).toFixed(1)} km away`}
+              </Text>
+            )}
+            <Text style={styles.note}>Approximate location pin</Text>
+            <Button title="Walking directions" icon="route" onPress={() => void directions()} />
+            {directionsError ? (
+              <Text accessibilityRole="alert" style={styles.body}>
+                {directionsError}
+              </Text>
+            ) : null}
+          </>
+        ) : spot ? (
           <>
             <Text style={styles.title}>{harvardTestStop.title}</Text>
             <View style={styles.badges}>
@@ -69,7 +115,8 @@ export default function SiteMapScreen({
           <>
             <Text style={styles.title}>Your map, your stories.</Text>
             <Text style={styles.body}>
-              Move around the map to explore. Add a location to create your first AR story pin.
+              Tap the Science Center or Quincy courtyard pin to view its location. You can also add
+              your own saved AR location.
             </Text>
             <Button title="Add a saved location" onPress={onAddLocation} />
           </>
@@ -81,7 +128,7 @@ export default function SiteMapScreen({
         ) : !precise ? (
           <Text style={styles.note}>Tap the location button to show your position.</Text>
         ) : (
-          <Text style={styles.note}>Blue dot: you · Red pin: saved story</Text>
+          <Text style={styles.note}>Blue dot: you · Red pins: places</Text>
         )}
       </ScrollView>
     </View>
