@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { ViroMaterials, ViroNode, ViroQuad, ViroText } from '@reactvision/react-viro';
+import React, { useCallback, useRef, useState } from 'react';
+import { ViroBox, ViroMaterials, ViroNode, ViroQuad, ViroText } from '@reactvision/react-viro';
 import { stops } from '../content';
+import type { ViroClickState } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import type { Vector3 } from '../anchorPlacement';
 
 ViroMaterials.createMaterials({
@@ -17,6 +18,13 @@ ViroMaterials.createMaterials({
     cullMode: 'None',
     writesToDepthBuffer: true,
     readsFromDepthBuffer: true,
+  },
+  ARInfoTouch: {
+    diffuseColor: '#FFFFFF',
+    lightingModel: 'Constant',
+    colorWritesMask: 'None',
+    writesToDepthBuffer: false,
+    readsFromDepthBuffer: false,
   },
   ARInfoText: {
     lightingModel: 'Constant',
@@ -71,37 +79,69 @@ function ARButton({
   x,
   y = -0.36,
   width = 0.28,
+  height = 0.12,
+  fontSize = 5,
   onPress,
 }: {
   label: string;
   x: number;
   y?: number;
   width?: number;
+  height?: number;
+  fontSize?: number;
   onPress: () => void;
 }) {
+  const latestPress = useRef(onPress);
+  latestPress.current = onPress;
+  const handledDown = useRef(false);
+  const press = useCallback((state: ViroClickState) => {
+    if (state === 1) {
+      handledDown.current = true;
+      latestPress.current();
+    }
+  }, []);
+  const click = useCallback(() => {
+    // Viro also emits CLICKED after touch-down. Execute one action per gesture.
+    if (handledDown.current) {
+      handledDown.current = false;
+      return;
+    }
+    latestPress.current();
+  }, []);
   return (
     <ViroNode position={[x, y, 0.012]}>
       <ViroQuad
         width={width}
-        height={0.12}
+        height={height}
         renderingOrder={11}
         materials={['ARInfoButton']}
-        onClick={onPress}
+        ignoreEventHandling
       />
       <ARText
         text={label}
         textClipMode="None"
         width={width - 0.02}
-        height={0.1}
+        height={height - 0.02}
         position={[0, 0, 0.025]}
         style={{
           fontFamily: 'Arial',
           color: '#FFFFFF',
-          fontSize: 5,
+          fontSize,
           textAlign: 'center',
           textAlignVertical: 'center',
         }}
-        onClick={onPress}
+        ignoreEventHandling
+      />
+      <ViroBox
+        width={width + 0.02}
+        height={height + 0.01}
+        length={0.04}
+        position={[0, 0, 0.06]}
+        materials={['ARInfoTouch']}
+        opacity={1}
+        highAccuracyEvents
+        onClickState={press}
+        onClick={click}
       />
     </ViroNode>
   );
@@ -137,6 +177,7 @@ export default function ARInfoPanel({
         height={onExpand ? 1.16 : 0.96}
         renderingOrder={10}
         materials={['ARInfoBackground']}
+        ignoreEventHandling
       />
       <ARText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
@@ -195,30 +236,15 @@ export default function ARInfoPanel({
         }}
         ignoreEventHandling
       />
-      <ViroNode position={[0.49, 0.4, 0.012]}>
-        <ViroQuad
-          width={0.11}
-          height={0.11}
-          renderingOrder={11}
-          materials={['ARInfoButton']}
-          onClick={onClose}
-        />
-        <ARText
-          text="×"
-          textClipMode="None"
-          width={0.1}
-          height={0.1}
-          position={[0, 0, 0.025]}
-          style={{
-            color: '#FFFFFF',
-            fontFamily: 'Arial',
-            fontSize: 6,
-            textAlign: 'center',
-            textAlignVertical: 'center',
-          }}
-          onClick={onClose}
-        />
-      </ViroNode>
+      <ARButton
+        label="×"
+        x={0.49}
+        y={0.4}
+        width={0.11}
+        height={0.11}
+        fontSize={6}
+        onPress={onClose}
+      />
       {index > 0 && <ARButton label="Back" x={-0.34} onPress={() => setPage(index - 1)} />}
       {onListen && <ARButton label={speaking ? 'Stop' : 'Listen'} x={0} onPress={onListen} />}
       {index < pages.length - 1 && (

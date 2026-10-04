@@ -25,6 +25,7 @@ jest.mock('@reactvision/react-viro', () => {
     }),
     ViroNode: component('node'),
     ViroQuad: component('quad'),
+    ViroBox: component('button-target'),
     ViroSphere: component('marker'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
@@ -87,7 +88,7 @@ test('round anchored marker opens a world-space rectangle and reposition resets 
       .some((node) => node.props.rotation && node.props.highAccuracyEvents === false),
   ).toBe(true);
   const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.49)!;
-  fireEvent(close.findByProps({ testID: 'quad' }), 'click');
+  fireEvent(close.findByProps({ testID: 'button-target' }), 'click');
   expect(app.onDismiss).toHaveBeenCalled();
   mockAnchors.reset.mockClear();
   act(() =>

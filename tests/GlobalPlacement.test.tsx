@@ -24,6 +24,7 @@ jest.mock('@reactvision/react-viro', () => {
         props,
       ),
     ViroQuad: component('quad'),
+    ViroBox: component('button-target'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
     ViroTrackingStateConstants: { TRACKING_NORMAL: 3 },
@@ -232,7 +233,7 @@ test('red box expands a world-space information panel with story pages, audio, a
     view
       .getAllByTestId('node')
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
-      .findByProps({ testID: 'quad' });
+      .findByProps({ testID: 'button-target' });
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
   fireEvent(buttonAt(0, -0.49), 'click');
@@ -256,7 +257,7 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(app.onListen).toHaveBeenCalledTimes(1);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [4, 2, 3] });
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
-  fireEvent(text('×')!, 'click');
+  fireEvent(buttonAt(0.49, 0.4), 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
   expect(view.getByTestId('marker').props.visible).toBe(true);
   expect(text(harvardTestStop.title)).toBeUndefined();
@@ -361,4 +362,35 @@ test('touch-down opens the padded marker immediately and subsequent tap events d
   expect(view.getAllByTestId('text').some((t) => t.props.text === harvardTestStop.title)).toBe(
     true,
   );
+});
+
+test('AR controls respond on contact once and keep decorative geometry out of hit testing', () => {
+  const close = jest.fn();
+  const listen = jest.fn();
+  const expand = jest.fn();
+  const view = render(
+    <ARInfoPanel detail={harvardTestStop} onClose={close} onListen={listen} onExpand={expand} />,
+  );
+  const target = (x: number, y = -0.36) =>
+    view
+      .getAllByTestId('node')
+      .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
+      .findByProps({ testID: 'button-target' });
+  const gesture = (x: number, y = -0.36) => {
+    fireEvent(target(x, y), 'clickState', 1);
+    fireEvent(target(x, y), 'clickState', 2);
+    fireEvent(target(x, y), 'clickState', 3);
+    fireEvent(target(x, y), 'click');
+  };
+  gesture(0.34);
+  const firstStoryPage = storyPages(harvardTestStop.story)[0];
+  expect(view.getAllByTestId('text').some((text) => text.props.text === firstStoryPage)).toBe(true);
+  gesture(0);
+  expect(listen).toHaveBeenCalledTimes(1);
+  gesture(0, -0.49);
+  expect(expand).toHaveBeenCalledTimes(1);
+  gesture(0.49, 0.4);
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(view.getAllByTestId('quad').every((quad) => quad.props.ignoreEventHandling)).toBe(true);
+  expect(view.getAllByTestId('text').every((text) => text.props.ignoreEventHandling)).toBe(true);
 });
