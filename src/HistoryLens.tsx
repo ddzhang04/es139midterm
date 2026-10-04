@@ -627,13 +627,20 @@ export default function HistoryLens() {
                   </Text>
                 )}
                 {nativeAR && selected && !layerPanel && (
-                  <Button
-                    compact
-                    title="Close AR information"
-                    secondary
-                    dark
-                    onPress={dismissStory}
-                  />
+                  <View style={{ gap: 10 }}>
+                    <Button
+                      compact
+                      title="Read full story"
+                      onPress={() => setFullScreenStory(true)}
+                    />
+                    <Button
+                      compact
+                      title="Close AR information"
+                      secondary
+                      dark
+                      onPress={dismissStory}
+                    />
+                  </View>
                 )}
                 {detail && !layerPanel && !nativeAR ? (
                   <StoryCard

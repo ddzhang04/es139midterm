@@ -216,6 +216,9 @@ test('the red Harvard location button opens AR information for the current marke
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Open AR information for Old Town Hall'));
   expect(screen.getByTestId('surface-session').props.selected).toBe(true);
+  fireEvent.press(screen.getByText('Read full story'));
+  expect(screen.getByText('Full story')).toBeTruthy();
+  fireEvent.press(screen.getByText('Return to AR'));
   fireEvent(screen.getByTestId('surface-session'), 'expand');
   expect(screen.getByText('Full story')).toBeTruthy();
   expect(screen.getByTestId('surface-session').props.selected).toBe(true);

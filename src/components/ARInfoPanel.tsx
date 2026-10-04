@@ -8,15 +8,15 @@ ViroMaterials.createMaterials({
     diffuseColor: '#F4F1E9',
     lightingModel: 'Constant',
     cullMode: 'None',
-    writesToDepthBuffer: false,
-    readsFromDepthBuffer: false,
+    writesToDepthBuffer: true,
+    readsFromDepthBuffer: true,
   },
   ARInfoButton: {
     diffuseColor: '#214E45',
     lightingModel: 'Constant',
     cullMode: 'None',
-    writesToDepthBuffer: false,
-    readsFromDepthBuffer: false,
+    writesToDepthBuffer: true,
+    readsFromDepthBuffer: true,
   },
   ARInfoText: {
     lightingModel: 'Constant',
@@ -26,8 +26,8 @@ ViroMaterials.createMaterials({
   },
 });
 
-// Explicit draw order and flat text prevent the card/background from obscuring
-// glyphs. Bounds constrain each field independently of its font size.
+// Backing surfaces write depth behind the glyphs so they cannot paint over
+// native bitmap text in another render pass. Bounds constrain each text field.
 const flatText = {
   highAccuracyEvents: false,
   extrusionDepth: 0,
