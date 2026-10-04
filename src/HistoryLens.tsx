@@ -3,7 +3,6 @@ import {
   Alert,
   Animated,
   BackHandler,
-  Image,
   Pressable,
   ScrollView,
   StatusBar,
@@ -29,7 +28,7 @@ import SurfaceARView, {
   surfaceInstructions,
   SurfacePhase,
 } from './SurfaceARView';
-import { pictures } from './assets';
+import PlaceIllustration from './components/PlaceIllustration';
 import { Button, Header, Icon, RoundButton, Tag } from './ui/primitives';
 import { styles as s } from './ui/styles';
 import { colors as C } from './ui/theme';
@@ -223,7 +222,7 @@ export default function HistoryLens() {
   );
   const locationControls = (
     <View style={{ backgroundColor: C.cream, padding: 12, borderRadius: 14, gap: 7 }}>
-      <Text style={s.eyebrow}>HARVARD · LOCATION TEST</Text>
+      <Text style={s.eyebrow}>SAVED LOCATION · TEST MODE</Text>
       <Text accessibilityLiveRegion="polite" style={s.smallBody}>
         {geo.busy
           ? 'Getting your phone’s location…'
@@ -234,7 +233,7 @@ export default function HistoryLens() {
                 : geo.nearby?.state === 'far'
                   ? `${Math.round(geo.nearby.distance)} m away · return within 50 m to unlock your tile.`
                   : 'Checking your location. Precise GPS is needed to unlock the tile.'
-              : 'Save where you’re standing as the Harvard test spot.')}
+              : 'Save where you’re standing as a test location.')}
       </Text>
       <Button
         compact
@@ -372,11 +371,7 @@ export default function HistoryLens() {
               }}
             />
           ) : (
-            <Image
-              source={mode === 'scan' ? pictures.discovery : pictures.scene}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+            <PlaceIllustration dark />
           )}
           <LinearGradient
             pointerEvents="none"
@@ -393,16 +388,16 @@ export default function HistoryLens() {
                   dark
                   title={
                     geo.spot
-                      ? 'Harvard AR Test'
+                      ? 'Explore in AR'
                       : selected
                         ? detail?.id === 'keeper'
-                          ? 'Battery Point AR'
+                          ? 'Explore in AR'
                           : 'Explore Object'
                         : mode === 'compare'
                           ? 'Compare'
                           : mode === 'discover'
                             ? 'Historical Layers'
-                            : 'Battery Point AR'
+                            : 'Explore in AR'
                   }
                   back={back}
                   action={
@@ -457,7 +452,7 @@ export default function HistoryLens() {
                       </Text>
                     </View>
                   ) : mode === 'compare' ? (
-                    <Tag amber>1864 · HISTORICAL OVERLAY: {Math.round(past)}%</Tag>
+                    <Tag amber>PAST OVERLAY: {Math.round(past)}%</Tag>
                   ) : (
                     <View style={s.hintCard}>
                       <Icon name="footsteps" />
@@ -624,6 +619,15 @@ export default function HistoryLens() {
                     markers.
                   </Text>
                 )}
+                {nativeAR && selected && !layerPanel && (
+                  <Button
+                    compact
+                    title="Close AR information"
+                    secondary
+                    dark
+                    onPress={dismissStory}
+                  />
+                )}
                 {detail && !layerPanel && !nativeAR ? (
                   <StoryCard
                     detail={detail}
@@ -646,7 +650,7 @@ export default function HistoryLens() {
                         },
                       ]}
                     >
-                      <Text style={s.sliderLabel}>Past · 1864</Text>
+                      <Text style={s.sliderLabel}>Past</Text>
                       <Slider
                         accessibilityLabel="Historical overlay opacity"
                         accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }}
@@ -669,13 +673,14 @@ export default function HistoryLens() {
                     <View style={s.liveDot} />
                     <Text style={s.liveText}>
                       {geo.spot
-                        ? 'Harvard location test'
+                        ? 'Saved location'
                         : nativeAR
                           ? 'Surface AR'
                           : camera
                             ? 'Live camera'
                             : 'Demo scene'}{' '}
-                      · {visited.length}/4 stories explored
+                      · {geo.spot ? (visited.includes('gun') ? 1 : 0) : visited.length}/
+                      {geo.spot ? 1 : stops.length} stories explored
                     </Text>
                   </View>
                 )}
@@ -730,7 +735,7 @@ export default function HistoryLens() {
                   <Pressable accessibilityRole="button" onPress={toggleCamera}>
                     <Text style={s.toolText}>
                       {uiPreview
-                        ? 'Simulator · demo scene'
+                        ? 'UI preview · demo scene'
                         : camera
                           ? 'Use demo scene'
                           : 'Use live camera'}

@@ -33,8 +33,8 @@ test('current phone position is saved, restored and removed as a Harvard test sp
   });
   fireEvent.press(screen.getByLabelText('Close panel'));
   fireEvent.press(screen.getByText('Explore This Site'));
-  await waitFor(() => expect(screen.getByLabelText('Explore Harvard test spot')).toBeTruthy());
-  expect(screen.queryByLabelText('Explore The 10-inch gun')).toBeNull();
+  await waitFor(() => expect(screen.getByLabelText('Explore My saved location')).toBeTruthy());
+  expect(screen.queryByLabelText('Explore Objects & artifacts')).toBeNull();
   view.unmount();
   render(<App />);
   openDev();
@@ -52,7 +52,7 @@ test('walking preserves the unlocked tile and leaves its saved location unchange
   await waitFor(() => expect(screen.getByText('Move test spot to my location')).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Close panel'));
   fireEvent.press(screen.getByText('Explore This Site'));
-  await waitFor(() => expect(screen.getByLabelText('Explore Harvard test spot')).toBeTruthy());
+  await waitFor(() => expect(screen.getByLabelText('Explore My saved location')).toBeTruthy());
   await waitFor(() => expect(Location.watchPositionAsync).toHaveBeenCalled());
   const callback = jest.mocked(Location.watchPositionAsync).mock.calls.at(-1)![1];
   act(() =>
@@ -69,7 +69,7 @@ test('walking preserves the unlocked tile and leaves its saved location unchange
       timestamp: Date.now(),
     }),
   );
-  await waitFor(() => expect(screen.getByLabelText('Explore Harvard test spot')).toBeTruthy());
+  await waitFor(() => expect(screen.getByLabelText('Explore My saved location')).toBeTruthy());
   expect(parseSpot(await AsyncStorage.getItem(TEST_SPOT_KEY))?.latitude).toBe(42.3745);
 });
 

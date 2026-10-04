@@ -1,7 +1,8 @@
 import React from 'react';
-import { ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { pictures } from '../assets';
+import PlaceIllustration from '../components/PlaceIllustration';
+import { demoSite } from '../content';
 import { Button, Icon, Tag } from '../ui/primitives';
 import { styles as s } from '../ui/styles';
 
@@ -23,13 +24,13 @@ export default function WelcomeScreen({
 }: Props) {
   return (
     <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-      <ImageBackground
-        source={pictures.welcome}
+      <View
         style={[
           s.welcomeImage,
           { height: Math.max(360, height * 0.485, insets.top + 170 * fontScale) },
         ]}
       >
+        <PlaceIllustration />
         <LinearGradient
           colors={['rgba(16,34,28,0.15)', 'rgba(16,34,28,0.1)', 'rgba(16,34,28,0.8)']}
           locations={[0, 0.62, 1]}
@@ -45,22 +46,22 @@ export default function WelcomeScreen({
           {developer}
         </View>
         <View style={s.siteLabel}>
-          <Tag>BATTERY POINT · EST. 1848</Tag>
-          <Text style={s.location}>Fort Harbor National Historic Site</Text>
+          <Tag>{demoSite.label}</Tag>
+          <Text style={s.location}>Objects · places · people</Text>
         </View>
-      </ImageBackground>
+      </View>
       <View style={[s.welcomeContent, { minHeight: height * 0.515 - insets.bottom }]}>
         <View>
           <Text accessibilityRole="header" style={s.headline}>
             Discover the stories hidden around you.
           </Text>
           <Text style={s.welcomeCopy}>
-            Explore the harbor’s past through local stories, historical records, and augmented
+            Explore the places around you through local stories, historical records, and augmented
             reality.
           </Text>
           <Text style={s.note}>
-            Illustrative historical content for this prototype. Locations, people, and events are
-            fictional.
+            Try the sample experience, or save a test location in DEV. Example stories are
+            illustrative.
           </Text>
         </View>
         <View style={s.actions}>

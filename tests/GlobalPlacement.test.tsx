@@ -236,7 +236,7 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(app.onListen).toHaveBeenCalledTimes(1);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [4, 2, 3] });
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
-  fireEvent(buttonAt(0.365, 0.3), 'click');
+  fireEvent(text('×')!, 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
   expect(view.getByTestId('box').props.visible).toBe(true);
   expect(text(harvardTestStop.title)).toBeUndefined();

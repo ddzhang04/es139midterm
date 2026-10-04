@@ -1,6 +1,7 @@
 import React from 'react';
-import { ImageBackground, Pressable, ScrollView, Text, View } from 'react-native';
-import { pictures } from '../assets';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import PlaceIllustration from '../components/PlaceIllustration';
+import { demoSite, stops } from '../content';
 import { Button, Header, Icon, RoundButton, Tag } from '../ui/primitives';
 import { styles as s } from '../ui/styles';
 
@@ -40,15 +41,16 @@ export default function SiteOverviewScreen({
         }
       />
       <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-        <ImageBackground source={pictures.site} style={s.siteImage}>
+        <View style={s.siteImage}>
+          <PlaceIllustration />
           <View style={s.imageCaption}>
-            <Tag>DEFENDING THE HARBOR</Tag>
+            <Tag>DEMO EXPERIENCE</Tag>
             <View style={s.tag}>
               <Icon name="images" />
-              <Text style={s.tagText}>1 / 4</Text>
+              <Text style={s.tagText}>{stops.length} stories</Text>
             </View>
           </View>
-        </ImageBackground>
+        </View>
         <View
           style={[
             s.siteDetails,
@@ -56,15 +58,11 @@ export default function SiteOverviewScreen({
           ]}
         >
           <View>
-            <Text style={s.eyebrow}>COASTAL DEFENSE · 1848–1945</Text>
+            <Text style={s.eyebrow}>PLACES · OBJECTS · PEOPLE</Text>
             <Text accessibilityRole="header" style={s.siteTitle}>
-              Battery Point Fort
+              {demoSite.title}
             </Text>
-            <Text style={s.body}>
-              Built after the War of 1812, this granite fort guarded the harbor’s shipping channel.
-              Soldiers, lighthouse keepers, and dockworkers shaped daily life here for nearly a
-              century.
-            </Text>
+            <Text style={s.body}>{demoSite.description}</Text>
             <Pressable accessibilityRole="button" onPress={onViewLand}>
               <Text style={s.textLink}>View Tribal Land Acknowledgment</Text>
             </Pressable>
@@ -77,9 +75,9 @@ export default function SiteOverviewScreen({
           <View style={s.facts}>
             {(
               [
-                { icon: 'clock', value: '25 min', label: 'AR walk' },
-                { icon: 'pin', value: '4 stops', label: '0.6 mile' },
-                { icon: 'access', value: 'Easy', label: 'Paved route' },
+                { icon: 'clock', value: 'Your pace', label: 'Explore freely' },
+                { icon: 'pin', value: `${stops.length} stories`, label: 'Sample markers' },
+                { icon: 'access', value: 'Tap to open', label: 'AR information' },
               ] as const
             ).map((f) => (
               <View key={f.label} style={s.fact}>

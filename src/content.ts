@@ -1,6 +1,6 @@
 export type StopId = 'gun' | 'quarters' | 'signal' | 'keeper';
 export type LayerId = 'structures' | 'people' | 'equipment' | 'photos' | 'stories';
-export const stops: {
+export type StoryStop = {
   id: StopId;
   title: string;
   category: string;
@@ -11,64 +11,69 @@ export const stops: {
   y: number;
   description: string;
   story: string;
-}[] = [
+};
+export const demoSite = {
+  title: 'A place full of stories',
+  label: 'EXPLORE YOUR SURROUNDINGS',
+  description:
+    'Discover objects, buildings, landmarks, and the people connected to a place. Open a marker to see its story in augmented reality.',
+};
+// Keep the existing IDs so saved prototype progress remains readable.
+export const stops: StoryStop[] = [
   {
     id: 'gun',
-    title: 'The 10-inch gun',
-    category: 'Military equipment',
-    year: '1864',
+    title: 'Objects & artifacts',
+    category: 'Objects',
+    year: 'Past & present',
     color: '#E75049',
     layer: 'equipment',
     x: 0.13,
     y: 0.36,
-    description:
-      'This cast-iron barrel fired heavy projectiles toward the harbor channel. Explore the cannon and the crew who operated it.',
+    description: 'Discover the everyday objects that help tell a place’s story.',
     story:
-      'The harbor was the gateway to the town. From this battery, soldiers watched ships approach and practiced loading the heavy cannon. A coordinated crew moved each projectile into place before the gun could fire.',
+      'An object can reveal how people lived, worked, and created. Its materials, purpose, and signs of use offer clues to the past. This example shows how an AR marker can connect an object to photographs, records, and stories shared by a community.',
   },
   {
     id: 'quarters',
-    title: 'Soldiers’ quarters',
-    category: 'Historic structure',
-    year: '1848',
+    title: 'Buildings & spaces',
+    category: 'Architecture',
+    year: 'Past & present',
     color: '#3485E8',
     layer: 'structures',
     x: 0.65,
     y: 0.51,
-    description:
-      'Beyond the stone arch, soldiers ate, slept, and prepared for long shifts guarding the harbor.',
+    description: 'Look at how a building or public space has changed over time.',
     story:
-      'Life inside the fort followed a steady rhythm of drills, meals, and watch duty. These rooms offered shelter from coastal winds, while the harbor outside connected the soldiers to a wider world.',
+      'Buildings hold layers of history. A doorway, an added floor, or a change in materials can show how a place adapted to new uses. Historical photographs and plans can help us imagine the same space at another moment in time.',
   },
   {
     id: 'signal',
-    title: 'Harbor signal',
-    category: 'Historic structure',
-    year: '1864',
+    title: 'Local landmarks',
+    category: 'Landmarks',
+    year: 'Past & present',
     color: '#3485E8',
     layer: 'structures',
     x: 0.46,
     y: 0.27,
-    description:
-      'Signals above the harbor helped passing vessels find their way and alerted the fort to approaching ships.',
+    description: 'Explore the features that give a place its identity.',
     story:
-      'Before radio, flags and lights carried messages across the water. From the high ground, a signal keeper could spot a ship long before it reached the harbor entrance.',
+      'A landmark can be a gathering place, a route, a monument, or a feature of the landscape. Its meaning can change across generations. Stories from people connected to it help us understand why it matters today.',
   },
   {
     id: 'keeper',
-    title: 'Meet Elias Reed',
-    category: 'Personal story',
-    year: '1866',
+    title: 'People & stories',
+    category: 'Community',
+    year: 'Past & present',
     color: '#E75049',
     layer: 'people',
     x: 0.63,
     y: 0.34,
-    description:
-      'Assistant lighthouse keeper · 1866. Discover the story of someone who lived and worked at Battery Point.',
+    description: 'Meet the voices and experiences connected to a place.',
     story:
-      'I am Elias Reed, an assistant keeper at Battery Point. Each evening, I climb the lighthouse stairs to prepare the lamp. The light helps sailors return safely through the channel. When the weather turns, we keep watch through the night.',
+      'A place’s history includes the people who lived, worked, and gathered there. Personal accounts offer perspectives that buildings and objects alone cannot provide. Community contributions can bring those experiences into the AR view.',
   },
 ];
+
 export const layers: {
   id: LayerId;
   label: string;
@@ -76,18 +81,19 @@ export const layers: {
 }[] = [
   { id: 'structures', label: 'Structures', icon: 'landmark' },
   { id: 'people', label: 'People', icon: 'people' },
-  { id: 'equipment', label: 'Military equipment', icon: 'shield' },
+  { id: 'equipment', label: 'Objects & artifacts', icon: 'shield' },
   { id: 'photos', label: 'Archival photographs', icon: 'photos' },
   { id: 'stories', label: 'Personal stories', icon: 'story' },
 ];
 
-export const harvardTestStop = {
+// The storage format retains its legacy name; the interface is location-neutral.
+export const harvardTestStop: StoryStop = {
   ...stops[0],
-  title: 'Harvard test spot',
-  category: 'Location test',
-  year: 'Today',
+  title: 'My saved location',
+  category: 'Your place',
+  year: 'Saved on this phone',
   description:
-    'You are near your saved test location. Tap the red tile to explore this spot through AR.',
+    'This marker belongs to your saved test location. Tap the red box to open its AR information panel.',
   story:
-    'Welcome to your Harvard location test. This story is attached to the GPS spot you saved on your phone. The floating red marker uses the global position you save in AR. GPS and compass accuracy may shift its placement.',
+    'Every place can hold a story. This is your saved test location, ready for information about an object, a building, or a person. The marker stays in the AR scene as you move. Save its global position to reopen it near the same location later; GPS accuracy can shift its placement.',
 };

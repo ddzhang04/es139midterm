@@ -123,7 +123,7 @@ test('Harvard marker ignores hidden stories from a previously selected demo stop
   jest.clearAllMocks();
   render(<App />);
   fireEvent.press(screen.getByText('View Site Map'));
-  fireEvent.press(screen.getByLabelText('Stop 4: Meet Elias Reed'));
+  fireEvent.press(screen.getByLabelText('Stop 4: People & stories'));
   fireEvent.press(screen.getByText('Explore in AR'));
   await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
   act(() => screen.getByTestId('surface-session').props.onDismiss());
@@ -155,7 +155,7 @@ test('show marker restores its layer and opacity when controls have hidden it', 
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Scan site and reconstruct'));
   fireEvent.press(screen.getByLabelText('Choose historical layers'));
-  fireEvent(screen.getByLabelText('Military equipment'), 'valueChange', false);
+  fireEvent(screen.getByLabelText('Objects & artifacts'), 'valueChange', false);
   fireEvent.press(screen.getByLabelText('Close layers'));
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
   expect(screen.getByText(/Marker hidden by Layers/)).toBeTruthy();
@@ -192,7 +192,7 @@ test('native marker opens AR information without a screen overlay or session res
   expect(screen.getByTestId('surface-session').props.onListen).toEqual(expect.any(Function));
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
   expect(mockSessionStopped).not.toHaveBeenCalled();
-  act(() => screen.getByTestId('surface-session').props.onDismiss());
+  fireEvent.press(screen.getByText('Close AR information'));
   expect(screen.getByTestId('surface-session').props.selected).toBe(false);
   expect(screen.getByTestId('surface-session').props.revision).toBe(revision);
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
@@ -214,7 +214,7 @@ test('the red Harvard location button opens AR information for the current marke
   render(<App />);
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
-  fireEvent.press(screen.getByLabelText('Open AR information for Harvard test spot'));
+  fireEvent.press(screen.getByLabelText('Open AR information for My saved location'));
   expect(screen.getByTestId('surface-session').props.selected).toBe(true);
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
   expect(mockSessionStopped).not.toHaveBeenCalled();

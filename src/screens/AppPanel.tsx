@@ -62,7 +62,7 @@ export default function AppPanel({
             {panel === 'dev' ? (
               <>
                 <Text style={s.modalCopy}>
-                  Create a Harvard test stop and save a floating marker at global coordinates.
+                  Create a test location anywhere and save a floating AR marker there.
                 </Text>
                 <Text style={s.note}>
                   Native app build: {Constants.nativeBuildVersion || 'unknown'}
@@ -124,7 +124,7 @@ export default function AppPanel({
                 <View style={s.noteBox}>
                   <Text style={s.eyebrow}>PROTOTYPE PLACEHOLDER</Text>
                   <Text style={s.modalCopy}>
-                    This location is fictional. A site-specific acknowledgment and related content
+                    This is illustrative content. A site-specific acknowledgment and related content
                     would be developed with the relevant Tribal Nation or Nations.
                   </Text>
                 </View>
@@ -138,40 +138,40 @@ export default function AppPanel({
               </>
             ) : panel === 'sources' ? (
               <>
-                <Text style={s.modalCopy}>About {detail?.title || 'Battery Point Fort'}</Text>
+                <Text style={s.modalCopy}>About {detail?.title || 'this place'}</Text>
                 <View style={s.divider} />
                 <Text style={s.body}>
                   {detail?.story ||
-                    'Explore the harbor through objects, buildings, and personal stories.'}
+                    'Explore a place through objects, buildings, landmarks, and personal stories.'}
                 </Text>
                 <View style={s.noteBox}>
                   <Text style={s.eyebrow}>ILLUSTRATIVE CONTENT</Text>
                   <Text style={s.modalCopy}>
-                    The locations, people, and events in this prototype are fictional. A full
-                    experience would connect each story to verified archival records, photographs,
-                    and community contributions.
+                    These sample stories illustrate the experience. A full experience would connect
+                    each story to verified archival records, photographs, and community
+                    contributions.
                   </Text>
                 </View>
               </>
             ) : (
               <>
                 <Text style={s.body}>
-                  1. For your Harvard test spot, wait for GPS and compass alignment. Other demo
-                  sites use surface tracking.
+                  1. Open your camera and look for a marker. In test mode, save your current
+                  location from DEV and place a floating box.
                 </Text>
                 <Text style={s.body}>
-                  2. The Harvard marker floats in front of you. Save its global position, then tap
-                  it to open its story.
+                  2. Tap the red or blue box to expand an information panel in AR. Tap × to return
+                  to the box.
                 </Text>
                 <Text style={s.body}>
                   3. Reconstruct objects, compare past and present, or choose historical layers.
                 </Text>
                 <View style={s.noteBox}>
                   <Text style={s.modalCopy}>
-                    Red tiles mark objects and people. Blue tiles mark structures. The Harvard test
-                    marker uses approximate global coordinates. Other demo sites use real surfaces.
-                    Use Place marker again to reposition. Expo Go and the demo scene use screen
-                    markers.
+                    Red markers show objects and people. Blue markers show buildings and landmarks.
+                    Saved test markers use approximate global coordinates; surface markers use the
+                    detected surface. Use Place marker again to reposition. Expo Go and the demo
+                    scene use screen markers.
                   </Text>
                 </View>
               </>

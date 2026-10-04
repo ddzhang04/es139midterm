@@ -32,7 +32,7 @@ function ARButton({ label, x, onPress }: { label: string; x: number; onPress: ()
         height={0.07}
         position={[0, 0, 0.003]}
         style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'center', textAlignVertical: 'center' }}
-        ignoreEventHandling
+        onClick={onPress}
       />
     </ViroNode>
   );
@@ -100,7 +100,7 @@ export default function ARInfoPanel({
             textAlign: 'center',
             textAlignVertical: 'center',
           }}
-          ignoreEventHandling
+          onClick={onClose}
         />
       </ViroNode>
       {index > 0 && <ARButton label="Previous" x={-0.25} onPress={() => setPage(index - 1)} />}

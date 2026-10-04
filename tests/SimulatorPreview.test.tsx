@@ -20,8 +20,8 @@ test('simulator UI preview opens an interactive demo without camera permission o
     fireEvent.press(screen.getByText('Explore This Site'));
     expect(request).not.toHaveBeenCalled();
     expect(screen.queryByTestId('native-camera')).toBeNull();
-    expect(screen.getByText('Simulator · demo scene')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Explore The 10-inch gun'));
+    expect(screen.getByText('UI preview · demo scene')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Explore Objects & artifacts'));
     expect(screen.getByText('Listen to Story')).toBeTruthy();
     fireEvent.press(screen.getByText('Continue Exploring'));
     fireEvent.press(screen.getByLabelText('Open developer settings'));

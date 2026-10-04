@@ -1,6 +1,6 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { pictures } from '../assets';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import PlaceIllustration from '../components/PlaceIllustration';
 import { stops, type StopId } from '../content';
 import { Button, Header, Icon, RoundButton } from '../ui/primitives';
 import { styles as s } from '../ui/styles';
@@ -24,11 +24,12 @@ export default function SiteMapScreen({
   onSelect,
   onExplore,
 }: Props) {
+  const percent = Math.round((visited.length / stops.length) * 100);
   return (
     <>
       <Header
         developer={developer}
-        title="Explore the Site"
+        title="Story Map"
         back={onBack}
         action={
           <RoundButton
@@ -41,11 +42,13 @@ export default function SiteMapScreen({
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={s.progressHeader}>
           <View style={s.between}>
-            <Text style={s.smallBody}>{visited.length} of 4 stories explored</Text>
-            <Text style={s.progressLabel}>{visited.length * 25}% complete</Text>
+            <Text style={s.smallBody}>
+              {visited.length} of {stops.length} stories explored
+            </Text>
+            <Text style={s.progressLabel}>{percent}% complete</Text>
           </View>
           <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width: `${visited.length * 25}%` }]} />
+            <View style={[s.progressFill, { width: `${percent}%` }]} />
           </View>
         </View>
         <View style={s.legend}>
@@ -54,7 +57,10 @@ export default function SiteMapScreen({
           <Text style={s.factLabel}>○ Not yet explored</Text>
         </View>
         <View style={[s.mapImage, { height: width * 1.04 }]}>
-          <Image source={pictures.map} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <PlaceIllustration map />
+          <View pointerEvents="none" style={{ position: 'absolute', left: 16, top: 12 }}>
+            <Text style={s.eyebrow}>ILLUSTRATIVE LAYOUT</Text>
+          </View>
           {stops.map((stop, i) => (
             <Pressable
               key={stop.id}
@@ -64,8 +70,8 @@ export default function SiteMapScreen({
               style={[
                 s.mapPin,
                 {
-                  left: `${[69, 54, 20, 74][i]}%`,
-                  top: `${[18, 43, 56, 78][i]}%`,
+                  left: `${stop.x * 100}%`,
+                  top: `${stop.y * 100}%`,
                   backgroundColor: visited.includes(stop.id) ? C.green : 'white',
                 },
               ]}
@@ -88,9 +94,9 @@ export default function SiteMapScreen({
               <Text style={s.eyebrow}>
                 {detail
                   ? 'SELECTED STOP'
-                  : visited.length === 4
+                  : visited.length === stops.length
                     ? 'WALK COMPLETE'
-                    : 'UP NEXT · 240 FT'}
+                    : 'NEXT STORY'}
               </Text>
               <Text style={s.nextTitle}>
                 {detail?.title ||
@@ -98,12 +104,13 @@ export default function SiteMapScreen({
                   'Every place has a story'}
               </Text>
               <Text style={s.factLabel}>
-                {detail?.description || 'Follow the path through the west arch.'}
+                {detail?.description ||
+                  'Choose a marker to preview its story. This diagram is not a live location map.'}
               </Text>
             </View>
           </View>
           <Button
-            title={detail ? 'Explore in AR' : 'Guide Me There'}
+            title={detail ? 'Explore in AR' : 'Explore Next Story'}
             icon="route"
             onPress={onExplore}
           />

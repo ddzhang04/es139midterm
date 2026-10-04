@@ -1,6 +1,6 @@
 # HistoryLens
 
-A native iOS and Android prototype built with React Native, Expo SDK 57, and Viro 2.57.3. It explores historical sites through red object/person markers, blue structure markers, information cards, narration, a site map, and historical layers. The bundled Battery Point content and imagery illustrate a fictional site.
+A native iOS and Android prototype built with React Native, Expo SDK 57, and Viro 2.57.3. It explores historical sites through red object/person markers, blue structure markers, information cards, narration, a site map, and historical layers. The sample experience uses location-neutral illustrative stories and a schematic story map. It makes no claims about a particular historical site.
 
 ## Run the app
 
@@ -44,7 +44,15 @@ Connect the iPhone by USB, unlock it, trust the Mac, and enable Developer Mode. 
 
 Keep Metro running while testing. After the first local installation, UI and JavaScript AR interaction changes reload through `npm run start:native`; native dependency/configuration changes need another local build. The existing `build:ios`, `build:ios:preview`, and `build:ios:simulator` commands use EAS cloud builds.
 
-## UI preview on a Mac
+## UI preview without a native build
+
+```sh
+npm run start:ui
+```
+
+Open the preview in Expo Go on a phone or press `i` for the iPhone simulator. It uses a neutral demo scene and screen markers, skips camera/AR startup, and reloads UI changes through Metro. Port 8083 keeps it separate from the AR development server on 8081. This command does not create a cloud build. To test the actual world-space red box, use the existing HistoryLens development app and `npm run start:native`.
+
+A standalone simulator artifact can optionally be created with the cloud command below; use the Expo Go preview for everyday UI iteration:
 
 ```sh
 npm run build:ios:simulator
@@ -63,13 +71,13 @@ This workstation has Xcode 16 and the iOS 18.0 simulator runtime. EAS uses its n
 
 **Surface demo:** move slowly across a well-lit, textured ground, tabletop, or wall, tap a highlighted plane, then tap the flat marker to open its information card. The tile follows the detected surface. Use Place marker again to reposition it.
 
-**Harvard test:** open DEV and use the phone's current location to create a local test spot. Its name does not establish that the phone is on campus. A precise, fresh GPS reading within the 50-metre discovery radius unlocks its saved marker. Once unlocked, GPS drift and walking do not hide it within the AR session.
+**Saved location test:** open DEV and use the phone's current location to create a local test spot. Its name does not establish that the phone is on campus. A precise, fresh GPS reading within the 50-metre discovery radius unlocks its saved marker. Once unlocked, GPS drift and walking do not hide it within the AR session.
 
 Show marker in front of me creates a preview two metres ahead once tracking is ready. It works without GPS and leaves existing saved coordinates untouched. Save global position requires a fresh GPS reading and persists latitude, longitude, usable WGS84 altitude, rotation, scale, and location accuracy. If height is unavailable, restoration uses camera height. Saved markers include direction/distance guidance, and repositioning restores their layer and nonzero opacity.
 
 The iPhone global scene uses ARKit GravityAndHeading and maps nearby coordinates to east/up/south axes once per session. Native tracking then keeps the point fixed as the visitor walks. GPS and compass error affect placement; this is approximate positioning rather than precise geospatial localization. Future 3D models still need better alignment.
 
-Moving or removing a test spot deliberately clears its local placement. Global mode does not use cloud anchors. Legacy cloud-anchor helpers remain in the surface implementation but are not used by the Harvard flow. All saved progress, bookmarks, and test locations are currently phone-local; shared site records require a backend.
+Moving or removing a test spot deliberately clears its local placement. Global mode does not use cloud anchors. Legacy cloud-anchor helpers remain in the surface implementation but are not used by the saved-location flow. All saved progress, bookmarks, and test locations are currently phone-local; shared site records require a backend.
 
 ## Code structure
 
@@ -85,7 +93,7 @@ Moving or removing a test spot deliberately clears its local placement. Global m
 - `src/useTestLocation.ts`: location tracking and test-spot transactions.
 - `src/GlobalARScene.tsx`, `src/SurfaceARScene.tsx`: native AR scenes.
 - `src/SurfaceARView.tsx`: lazy native-engine loading and capability checks.
-- `src/content.ts`, `src/assets.ts`, `src/icons.ts`: content and bundled visual resources.
+- `src/content.ts`, `src/icons.ts`, `src/components/PlaceIllustration.tsx`: reusable example content, icons, and location-neutral illustrations.
 
 Storage retains the existing record keys. Progress loading merges visits made before hydration finishes, and an explicit bookmark change takes precedence over the restored value. Writes are serialized so a later save or delete cannot be undone by an older asynchronous write. Moving a test spot blocks saves for the old position. Camera permission responses and narration callbacks are ignored after their operation has been superseded. AR mount guards support React's effect replay.
 

@@ -48,7 +48,7 @@ test('small-screen large-text navigation keeps story actions, layers, and develo
     expect(
       screen.getByTestId('ar-top').findByProps({ accessibilityLabel: 'Open developer settings' }),
     ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Explore The 10-inch gun'));
+    fireEvent.press(screen.getByLabelText('Explore Objects & artifacts'));
     expect(
       screen.getByTestId('ar-controls').findByProps({ children: 'Listen to Story' }),
     ).toBeTruthy();

@@ -19,7 +19,8 @@
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm test && npm run format:check",
     "doctor:ios": "node scripts/check-ios-toolchain.mjs",
-    "ios:local": "npm run doctor:ios && expo run:ios --device"
+    "ios:local": "npm run doctor:ios && expo run:ios --device",
+    "start:ui": "HISTORYLENS_UI_PREVIEW=1 expo start --go --port 8083"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
