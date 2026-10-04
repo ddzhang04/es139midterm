@@ -85,7 +85,7 @@ test('flat anchored tile opens a world-space rectangle and reposition resets pla
       .getAllByTestId('node')
       .some((node) => node.props.rotation && node.props.position?.every((v: number) => v === 0)),
   ).toBe(true);
-  const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.365)!;
+  const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.49)!;
   fireEvent(close.findByProps({ testID: 'quad' }), 'click');
   expect(app.onDismiss).toHaveBeenCalled();
   mockAnchors.reset.mockClear();

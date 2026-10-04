@@ -37,12 +37,26 @@ const flatText = {
   textLineBreakMode: 'WordWrap' as const,
 };
 
+// Larger glyph textures scaled back down keep text sharp at AR viewing distances.
+function ARText({ width = 1, height = 1, style, ...props }: React.ComponentProps<typeof ViroText>) {
+  return (
+    <ViroText
+      {...flatText}
+      {...props}
+      width={width * 4}
+      height={height * 4}
+      scale={[0.25, 0.25, 0.25]}
+      style={{ ...style, fontSize: (style?.fontSize || 10) * 4 }}
+    />
+  );
+}
+
 // Short pages keep the complete story legible within a fixed world-space panel.
 export function storyPages(text: string): string[] {
   const pages: string[] = [];
   let page = '';
   for (const word of text.split(/\s+/)) {
-    if (page && page.length + word.length + 1 > 120) {
+    if (page && page.length + word.length + 1 > 80) {
       pages.push(page);
       page = '';
     }
@@ -54,24 +68,23 @@ export function storyPages(text: string): string[] {
 
 function ARButton({ label, x, onPress }: { label: string; x: number; onPress: () => void }) {
   return (
-    <ViroNode position={[x, -0.285, 0.012]}>
+    <ViroNode position={[x, -0.36, 0.012]}>
       <ViroQuad
-        width={0.2}
-        height={0.08}
+        width={0.28}
+        height={0.12}
         renderingOrder={11}
         materials={['ARInfoButton']}
         onClick={onPress}
       />
-      <ViroText
-        {...flatText}
+      <ARText
         text={label}
-        width={0.19}
-        height={0.07}
+        width={0.26}
+        height={0.1}
         position={[0, 0, 0.025]}
         style={{
           fontFamily: 'Arial',
           color: '#FFFFFF',
-          fontSize: 7,
+          fontSize: 9,
           textAlign: 'center',
           textAlignVertical: 'center',
         }}
@@ -95,100 +108,95 @@ export default function ARInfoPanel({
   rotation?: Vector3;
 }) {
   const [page, setPage] = useState(0);
-  const pages = [detail.description, ...storyPages(detail.story)];
+  const pages = [...storyPages(detail.description), ...storyPages(detail.story)];
   const index = Math.min(page, pages.length - 1);
   return (
     <ViroNode position={[0, 0, 0]} rotation={rotation} highAccuracyEvents={false}>
-      <ViroQuad width={0.84} height={0.8} renderingOrder={10} materials={['ARInfoBackground']} />
-      <ViroText
-        {...flatText}
+      <ViroQuad width={1.12} height={0.96} renderingOrder={10} materials={['ARInfoBackground']} />
+      <ARText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
-        width={0.66}
-        height={0.055}
-        position={[-0.025, 0.32, 0.03]}
+        width={0.84}
+        height={0.07}
+        position={[-0.045, 0.405, 0.03]}
         style={{
           fontFamily: 'Arial',
-          color: '#A16C22',
-          fontSize: 6,
+          color: '#6D4817',
+          fontSize: 8,
           textAlign: 'left',
           textAlignVertical: 'center',
         }}
         ignoreEventHandling
       />
-      <ViroText
-        {...flatText}
+      <ARText
         text={detail.title}
-        width={0.68}
-        height={0.12}
-        position={[0, 0.21, 0.03]}
+        width={0.92}
+        height={0.16}
+        position={[0, 0.3, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
-          fontSize: 11,
+          fontSize: 14,
           fontWeight: 'bold',
           textAlign: 'left',
           textAlignVertical: 'center',
         }}
         ignoreEventHandling
       />
-      <ViroText
-        {...flatText}
+      <ARText
         text={pages[index]}
-        width={0.68}
-        height={0.3}
-        position={[0, -0.015, 0.03]}
+        width={0.92}
+        height={0.42}
+        position={[0, 0, 0.03]}
         style={{
           fontFamily: 'Arial',
-          color: '#52605A',
-          fontSize: 7,
+          color: '#172521',
+          fontSize: 9,
           textAlign: 'left',
           textAlignVertical: 'top',
         }}
         ignoreEventHandling
       />
-      <ViroText
-        {...flatText}
+      <ARText
         text={`${index + 1} / ${pages.length}`}
         width={0.18}
-        height={0.04}
-        position={[0, -0.205, 0.03]}
+        height={0.06}
+        position={[0, -0.265, 0.03]}
         style={{
           fontFamily: 'Arial',
-          color: '#52605A',
-          fontSize: 5,
+          color: '#172521',
+          fontSize: 7,
           textAlign: 'center',
           textAlignVertical: 'center',
         }}
         ignoreEventHandling
       />
-      <ViroNode position={[0.365, 0.3, 0.012]}>
+      <ViroNode position={[0.49, 0.4, 0.012]}>
         <ViroQuad
-          width={0.08}
-          height={0.08}
+          width={0.11}
+          height={0.11}
           renderingOrder={11}
           materials={['ARInfoButton']}
           onClick={onClose}
         />
-        <ViroText
-          {...flatText}
+        <ARText
           text="×"
-          width={0.075}
-          height={0.075}
+          width={0.1}
+          height={0.1}
           position={[0, 0, 0.025]}
           style={{
             color: '#FFFFFF',
             fontFamily: 'Arial',
-            fontSize: 9,
+            fontSize: 12,
             textAlign: 'center',
             textAlignVertical: 'center',
           }}
           onClick={onClose}
         />
       </ViroNode>
-      {index > 0 && <ARButton label="Previous" x={-0.25} onPress={() => setPage(index - 1)} />}
-      {onListen && <ARButton label={speaking ? 'Stop audio' : 'Listen'} x={0} onPress={onListen} />}
+      {index > 0 && <ARButton label="Back" x={-0.34} onPress={() => setPage(index - 1)} />}
+      {onListen && <ARButton label={speaking ? 'Stop' : 'Listen'} x={0} onPress={onListen} />}
       {index < pages.length - 1 && (
-        <ARButton label="Next" x={0.25} onPress={() => setPage(index + 1)} />
+        <ARButton label="Next" x={0.34} onPress={() => setPage(index + 1)} />
       )}
     </ViroNode>
   );

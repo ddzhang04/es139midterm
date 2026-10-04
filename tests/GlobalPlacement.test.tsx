@@ -226,7 +226,7 @@ test('red box expands a world-space information panel with story pages, audio, a
   );
   const text = (value: string) =>
     view.getAllByTestId('text').find((item) => item.props.text === value);
-  const buttonAt = (x: number, y = -0.285) =>
+  const buttonAt = (x: number, y = -0.36) =>
     view
       .getAllByTestId('node')
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
@@ -243,12 +243,12 @@ test('red box expands a world-space information panel with story pages, audio, a
   );
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
-    fireEvent(buttonAt(0.25), 'click');
+    fireEvent(buttonAt(0.34), 'click');
     expect(text(page)).toBeTruthy();
   }
   expect(pages.join(' ')).toBe(harvardTestStop.story);
   expect(text('Next')).toBeUndefined();
-  fireEvent(buttonAt(-0.25), 'click');
+  fireEvent(buttonAt(-0.34), 'click');
   expect(text('Next')).toBeTruthy();
   fireEvent(buttonAt(0), 'click');
   expect(app.onListen).toHaveBeenCalledTimes(1);

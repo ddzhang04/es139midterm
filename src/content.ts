@@ -92,8 +92,7 @@ export const harvardTestStop: StoryStop = {
   title: 'Old Town Hall',
   category: 'Example story',
   year: '1892',
-  description:
-    'Imagine this was the town’s gathering place: a hall for meetings, celebrations, and everyday community life.',
+  description: 'A gathering place for town meetings, celebrations, and everyday community life.',
   story:
     'In this fictional example, the hall opened in 1892. Neighbors gathered here to discuss local issues, share news, and celebrate together. Over the years, the building became a library and later a community center. Look for the tall windows and stone entrance: details that hint at how the space was used. This sample shows how a real site’s researched history could appear beside it in AR.',
 };
