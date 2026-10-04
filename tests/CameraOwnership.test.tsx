@@ -72,3 +72,40 @@ test('explicit marker preview remains visible even when GPS is uncertain', async
   act(() => screen.getByTestId('surface-session').props.onPhaseChange('anchorError'));
   expect(screen.getByTestId('surface-session').props.visible).toBe(true);
 });
+
+test('Harvard marker ignores hidden stories from a previously selected demo stop', async () => {
+  await AsyncStorage.clear(); jest.clearAllMocks();
+  render(<App />);
+  fireEvent.press(screen.getByText('View Site Map'));
+  fireEvent.press(screen.getByLabelText('Stop 4: Meet Elias Reed'));
+  fireEvent.press(screen.getByText('Explore in AR'));
+  await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
+  fireEvent.press(screen.getByText('Continue Exploring'));
+  fireEvent.press(screen.getByLabelText('Choose historical layers'));
+  fireEvent(screen.getByLabelText('Personal stories'), 'valueChange', false);
+  fireEvent.press(screen.getByLabelText('Close layers'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
+  fireEvent.press(screen.getByLabelText('Open developer settings'));
+  fireEvent.press(screen.getByText('Use my current location'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
+  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
+});
+
+test('show marker restores its layer and opacity when controls have hidden it', async () => {
+  await AsyncStorage.clear(); jest.clearAllMocks();
+  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123 }));
+  render(<App />); fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Scan site and reconstruct'));
+  fireEvent.press(screen.getByLabelText('Choose historical layers'));
+  fireEvent(screen.getByLabelText('Military equipment'), 'valueChange', false);
+  fireEvent.press(screen.getByLabelText('Close layers'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
+  expect(screen.getByText(/Marker hidden by Layers/)).toBeTruthy();
+  fireEvent.press(screen.getByText('Compare'));
+  fireEvent(screen.getByLabelText('Historical overlay opacity'), 'valueChange', 0);
+  fireEvent.press(screen.getByText('Show marker in front of me'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
+  expect(screen.getByTestId('surface-session').props.opacity).toBe(1);
+  expect(screen.getByTestId('surface-session').props.revision).toBe(1);
+});

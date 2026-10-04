@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
-      "buildNumber": "8",
+      "buildNumber": "9",
       "supportsTablet": false,
       "bundleIdentifier": "com.historylens.prototype",
       "infoPlist": {
