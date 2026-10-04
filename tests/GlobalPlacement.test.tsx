@@ -6,7 +6,7 @@ import { globalToWorld, markerDirection, worldToGlobal } from '../src/globalPlac
 import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
 import { harvardTestStop } from '../src/content';
-import { storyPages } from '../src/components/ARInfoPanel';
+import ARInfoPanel, { storyPages } from '../src/components/ARInfoPanel';
 import { panelFacingRotation } from '../src/arPanelFacing';
 import { surfaceWorldPoint } from '../src/anchorPlacement';
 import type { SurfaceARProps } from '../src/SurfaceARView';
@@ -19,8 +19,10 @@ jest.mock('@reactvision/react-viro', () => {
     ViroARScene: component('scene'),
     ViroARSceneNavigator: component('navigator'),
     ViroNode: component('node'),
-    ViroBox: component('box'),
-    ViroSphere: component('marker-touch-target'),
+    ViroSphere: (props: { materials?: string[] }) =>
+      component(props.materials?.includes('GlobalMarkerTouch') ? 'marker-touch-target' : 'marker')(
+        props,
+      ),
     ViroQuad: component('quad'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
@@ -89,7 +91,7 @@ test('floating marker stays fixed while walking and restores without surface or 
   const app = appProps();
   const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
-  expect(view.queryByTestId('box')).toBeNull();
+  expect(view.queryByTestId('marker')).toBeNull();
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
   expect(view.getByTestId('node').props.position).toEqual([1, 2, 1]);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [5, 2, 3] });
@@ -103,7 +105,7 @@ test('floating marker stays fixed while walking and restores without surface or 
   );
   const saved = jest.mocked(app.onPlacementSaved!).mock.calls[0][0];
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('globalSaved');
-  fireEvent(view.getByTestId('box'), 'click');
+  fireEvent(view.getByTestId('marker'), 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
   view.unmount();
   const next = { ...appProps(), testSpot: { ...spot, placement: saved } };
@@ -122,7 +124,7 @@ test('floating marker stays fixed while walking and restores without surface or 
   expect(restoredTarget.props.opacity).toBe(1);
   fireEvent(restoredTarget, 'clickState', 1);
   expect(next.onSelect).toHaveBeenCalledWith('gun');
-  expect(restored.getByTestId('box').props.visible).toBe(false);
+  expect(restored.getByTestId('marker').props.visible).toBe(false);
   expect(
     restored.getAllByTestId('text').some((text) => text.props.text === harvardTestStop.title),
   ).toBe(true);
@@ -211,15 +213,15 @@ test('global save reports completion after React replays mounting effects', asyn
 });
 
 test('red box expands a world-space information panel with story pages, audio, and close', () => {
-  const app = { ...appProps(), onListen: jest.fn() };
+  const app = { ...appProps(), onListen: jest.fn(), onExpand: jest.fn() };
   const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
-  fireEvent(view.getByTestId('box'), 'click');
+  fireEvent(view.getByTestId('marker'), 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
   // A duplicate native click must leave the panel open, even before app props update.
-  fireEvent(view.getByTestId('box'), 'click');
-  expect(view.getByTestId('box').props.visible).toBe(false);
+  fireEvent(view.getByTestId('marker'), 'click');
+  expect(view.getByTestId('marker').props.visible).toBe(false);
   expect(app.onSelect).toHaveBeenCalledTimes(1);
   view.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
@@ -233,6 +235,8 @@ test('red box expands a world-space information panel with story pages, audio, a
       .findByProps({ testID: 'quad' });
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
+  fireEvent(buttonAt(0, -0.49), 'click');
+  expect(app.onExpand).toHaveBeenCalledTimes(1);
   const panel = view
     .getAllByTestId('node')
     .find((node) => node.props.position?.every((v: number) => v === 0) && node.props.rotation)!;
@@ -256,11 +260,26 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
   fireEvent(text('×')!, 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
-  expect(view.getByTestId('box').props.visible).toBe(true);
+  expect(view.getByTestId('marker').props.visible).toBe(true);
   expect(text(harvardTestStop.title)).toBeUndefined();
-  fireEvent(view.getByTestId('box'), 'click');
+  fireEvent(view.getByTestId('marker'), 'click');
   expect(text(harvardTestStop.description)).toBeTruthy();
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
+});
+
+test('an open AR panel keeps its initial orientation as the camera moves', () => {
+  const close = jest.fn();
+  const view = render(
+    <ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[0, 20, 0]} />,
+  );
+  view.rerender(<ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[10, 60, 5]} />);
+  expect(view.getAllByTestId('node')[0].props.rotation).toEqual([0, 20, 0]);
+  expect(view.getAllByTestId('node')[0].props.position).toEqual([0, 0, 0]);
+  view.unmount();
+  const reopened = render(
+    <ARInfoPanel detail={harvardTestStop} onClose={close} rotation={[10, 60, 5]} />,
+  );
+  expect(reopened.getAllByTestId('node')[0].props.rotation).toEqual([10, 60, 5]);
 });
 
 test('the panel faces the camera without native billboarding, including rotated parents', () => {
@@ -284,14 +303,14 @@ test('the plus sign opens the panel and app dismissal restores the box without m
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
   fireEvent(view.getByTestId('text'), 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
-  expect(view.getByTestId('box').props.visible).toBe(false);
+  expect(view.getByTestId('marker').props.visible).toBe(false);
   view.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
   );
   view.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: false } }} />,
   );
-  expect(view.getByTestId('box').props.visible).toBe(true);
+  expect(view.getByTestId('marker').props.visible).toBe(true);
   expect(view.getByTestId('node').props.position).toEqual([1, 2, 1]);
 });
 
@@ -305,11 +324,11 @@ test('touch-down opens the padded marker immediately and subsequent tap events d
   expect(app.onSelect).not.toHaveBeenCalled();
   fireEvent(target, 'clickState', 1);
   expect(app.onSelect).toHaveBeenCalledTimes(1);
-  expect(view.getByTestId('box').props.visible).toBe(false);
+  expect(view.getByTestId('marker').props.visible).toBe(false);
   expect(view.getByTestId('marker-touch-target').props.visible).toBe(false);
   fireEvent(target, 'clickState', 3);
   fireEvent(target, 'click');
-  fireEvent(view.getByTestId('box'), 'clickState', 1);
+  fireEvent(view.getByTestId('marker'), 'clickState', 1);
   expect(app.onSelect).toHaveBeenCalledTimes(1);
   expect(view.getAllByTestId('text').some((t) => t.props.text === harvardTestStop.title)).toBe(
     true,

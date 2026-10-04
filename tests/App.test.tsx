@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Speech from 'expo-speech';
 import { Alert } from 'react-native';
 import App from '../App';
+import { stops } from '../src/content';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -17,6 +18,23 @@ async function enterAR() {
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
 }
+
+test('full-screen reading returns to the same selected marker without restarting the camera', async () => {
+  await start();
+  await enterAR();
+  fireEvent.press(screen.getByLabelText('Explore Objects & artifacts'));
+  const camera = screen.getByTestId('native-camera');
+  fireEvent.press(screen.getByText('Read full screen'));
+  expect(screen.getByText('Full story')).toBeTruthy();
+  expect(screen.getByText(stops[0].story)).toBeTruthy();
+  expect(screen.getByTestId('native-camera')).toBe(camera);
+  fireEvent.press(screen.getByText('Return to AR'));
+  expect(screen.queryByText('Full story')).toBeNull();
+  expect(screen.getByTestId('native-camera')).toBe(camera);
+  expect(
+    screen.getByLabelText('Explore Objects & artifacts').props.accessibilityState.expanded,
+  ).toBe(true);
+});
 
 test('Explore This Site opens the camera, blocks expand, audio works, and progress persists', async () => {
   await start();

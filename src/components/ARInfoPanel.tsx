@@ -66,11 +66,23 @@ export function storyPages(text: string): string[] {
   return pages.length ? pages : [''];
 }
 
-function ARButton({ label, x, onPress }: { label: string; x: number; onPress: () => void }) {
+function ARButton({
+  label,
+  x,
+  y = -0.36,
+  width = 0.28,
+  onPress,
+}: {
+  label: string;
+  x: number;
+  y?: number;
+  width?: number;
+  onPress: () => void;
+}) {
   return (
-    <ViroNode position={[x, -0.36, 0.012]}>
+    <ViroNode position={[x, y, 0.012]}>
       <ViroQuad
-        width={0.28}
+        width={width}
         height={0.12}
         renderingOrder={11}
         materials={['ARInfoButton']}
@@ -78,7 +90,7 @@ function ARButton({ label, x, onPress }: { label: string; x: number; onPress: ()
       />
       <ARText
         text={label}
-        width={0.26}
+        width={width - 0.02}
         height={0.1}
         position={[0, 0, 0.025]}
         style={{
@@ -100,19 +112,28 @@ export default function ARInfoPanel({
   onListen,
   speaking = false,
   rotation = [0, 0, 0],
+  onExpand,
 }: {
   detail: (typeof stops)[number];
   onClose: () => void;
   onListen?: () => void;
   speaking?: boolean;
   rotation?: Vector3;
+  onExpand?: () => void;
 }) {
   const [page, setPage] = useState(0);
+  // Face the user once when opened, then keep the world-space orientation fixed.
+  const [lockedRotation] = useState<Vector3>(() => [...rotation]);
   const pages = [...storyPages(detail.description), ...storyPages(detail.story)];
   const index = Math.min(page, pages.length - 1);
   return (
-    <ViroNode position={[0, 0, 0]} rotation={rotation} highAccuracyEvents={false}>
-      <ViroQuad width={1.12} height={0.96} renderingOrder={10} materials={['ARInfoBackground']} />
+    <ViroNode position={[0, 0, 0]} rotation={lockedRotation} highAccuracyEvents={false}>
+      <ViroQuad
+        width={1.12}
+        height={onExpand ? 1.16 : 0.96}
+        renderingOrder={10}
+        materials={['ARInfoBackground']}
+      />
       <ARText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
         width={0.84}
@@ -197,6 +218,9 @@ export default function ARInfoPanel({
       {onListen && <ARButton label={speaking ? 'Stop' : 'Listen'} x={0} onPress={onListen} />}
       {index < pages.length - 1 && (
         <ARButton label="Next" x={0.34} onPress={() => setPage(index + 1)} />
+      )}
+      {onExpand && (
+        <ARButton label="Read full screen" x={0} y={-0.49} width={0.92} onPress={onExpand} />
       )}
     </ViroNode>
   );

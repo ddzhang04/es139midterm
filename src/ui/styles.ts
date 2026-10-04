@@ -278,7 +278,7 @@ export const styles = StyleSheet.create({
   arBlock: {
     width: 66,
     height: 66,
-    borderRadius: 10,
+    borderRadius: 33,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,.9)',
     justifyContent: 'center',

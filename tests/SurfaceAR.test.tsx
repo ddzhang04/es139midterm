@@ -25,6 +25,7 @@ jest.mock('@reactvision/react-viro', () => {
     }),
     ViroNode: component('node'),
     ViroQuad: component('quad'),
+    ViroSphere: component('marker'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
     ViroTrackingStateConstants: { TRACKING_NORMAL: 3 },
@@ -67,13 +68,13 @@ test('surface events reach the plane selector and placement survives normal trac
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('lost');
 });
 
-test('flat anchored tile opens a world-space rectangle and reposition resets placement', () => {
+test('round anchored marker opens a world-space rectangle and reposition resets placement', () => {
   const app = props();
   const view = render(<PlacementScene sceneNavigator={{ viroAppProps: app }} />);
-  const tile = view.getByTestId('quad');
-  expect(tile.props.rotation).toEqual([-90, 0, 0]);
-  expect(tile.props.position).toEqual([0, 0.004, 0]);
-  expect(view.getByTestId('selector').findAllByProps({ testID: 'quad' })).toContain(tile);
+  const tile = view.getByTestId('marker');
+  expect(tile.props.radius).toBe(0.16);
+  expect(tile.props.position).toEqual([0, 0.164, 0]);
+  expect(view.getByTestId('selector').findAllByProps({ testID: 'marker' })).toContain(tile);
   fireEvent(tile, 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
   view.rerender(<PlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />);

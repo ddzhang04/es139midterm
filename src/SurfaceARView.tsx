@@ -33,6 +33,7 @@ export type SurfaceARProps = {
   onAnchorSaved?: (anchor: PersistentAnchor, savedAt: number) => Promise<void>;
   speaking?: boolean;
   onListen?: () => void;
+  onExpand?: () => void;
   selected: boolean;
   visible: boolean;
   opacity: number;

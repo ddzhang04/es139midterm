@@ -9,7 +9,7 @@ import {
   ViroARPlaneSelector,
   ViroARPlane,
   ViroNode,
-  ViroQuad,
+  ViroSphere,
   ViroText,
   ViroMaterials,
   ViroTrackingStateConstants,
@@ -278,13 +278,10 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   );
   const tile = (
     <ViroNode visible={app.visible} opacity={app.opacity}>
-      {/* Plane-local XZ is the surface. A quad is perfectly flat; 4 mm
-            offset prevents flicker where virtual and real surfaces meet. */}
-      <ViroQuad
-        width={0.32}
-        height={0.24}
-        position={[0, 0.004, 0]}
-        rotation={[-90, 0, 0]}
+      <ViroSphere
+        radius={0.16}
+        position={[0, 0.164, 0]}
+        highAccuracyEvents={false}
         materials={[stop.color === '#3485E8' ? 'HistoryLensBlue' : 'HistoryLensRed']}
         visible={!selection.selected}
         onClick={selection.open}
@@ -294,9 +291,10 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         text="+"
         width={0.12}
         height={0.12}
-        position={[0, 0.006, 0]}
+        position={[0, 0.326, 0]}
         rotation={[-90, 0, 0]}
-        style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }}
+        style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'center', textAlignVertical: 'center' }}
+        highAccuracyEvents={false}
         onClick={selection.open}
         onClickState={selection.press}
         visible={!selection.selected}
@@ -308,6 +306,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
           onClose={selection.close}
           onListen={app.onListen}
           speaking={app.speaking}
+          onExpand={app.onExpand}
           rotation={panelFacingRotation(facing.position, panelPoint, parentRotation)}
         />
       )}

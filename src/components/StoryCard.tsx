@@ -10,6 +10,7 @@ type Props = {
   onClose: () => void;
   onListen: () => void;
   onSources: () => void;
+  onExpand?: () => void;
 };
 export default function StoryCard({
   detail,
@@ -18,6 +19,7 @@ export default function StoryCard({
   onClose,
   onListen,
   onSources,
+  onExpand,
 }: Props) {
   return (
     <View style={s.detailCard}>
@@ -34,6 +36,7 @@ export default function StoryCard({
         <RoundButton icon="close" label="Close detail" onPress={onClose} />
       </View>
       <Text style={s.detailBody}>{detail.description}</Text>
+      {onExpand && <Button compact title="Read full screen" secondary onPress={onExpand} />}
       <Button
         compact
         title={speaking ? 'Stop listening' : 'Listen to Story'}

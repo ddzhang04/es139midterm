@@ -7,7 +7,6 @@ import {
   ViroARSceneNavigator,
   ViroARScene,
   ViroNode,
-  ViroBox,
   ViroSphere,
   ViroText,
   ViroMaterials,
@@ -173,10 +172,8 @@ export function GlobalPlacementScene(
             onClickState={selection.press}
             onClick={selection.open}
           />
-          <ViroBox
-            width={0.48}
-            height={0.36}
-            length={0.12}
+          <ViroSphere
+            radius={0.24}
             materials={['GlobalMarkerRed']}
             visible={!selection.selected}
             onClick={selection.open}
@@ -187,11 +184,11 @@ export function GlobalPlacementScene(
             text="+"
             width={0.15}
             height={0.15}
-            position={[0, 0, 0.065]}
+            position={[0, 0, 0.245]}
             highAccuracyEvents={false}
             style={{
               color: '#FFFFFF',
-              fontSize: 30,
+              fontSize: 18,
               textAlign: 'center',
               textAlignVertical: 'center',
             }}
@@ -206,6 +203,7 @@ export function GlobalPlacementScene(
               onClose={selection.close}
               onListen={app.onListen}
               speaking={app.speaking}
+              onExpand={app.onExpand}
               rotation={panelFacingRotation(
                 facing.position,
                 point,

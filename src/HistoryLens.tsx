@@ -38,6 +38,7 @@ import SiteMapScreen from './screens/SiteMapScreen';
 import AppPanel, { type Panel } from './screens/AppPanel';
 import HistoricalLayers from './components/HistoricalLayers';
 import StoryCard from './components/StoryCard';
+import StoryReader from './screens/StoryReader';
 const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
 type Screen = 'welcome' | 'site' | 'map' | 'ar';
 type Mode = 'scan' | 'reconstruct' | 'compare' | 'discover';
@@ -50,6 +51,10 @@ export default function HistoryLens() {
   const [mapFrom, setMapFrom] = useState<Screen>('welcome');
   const [mode, setMode] = useState<Mode>('scan');
   const [selected, setSelected] = useState<StopId | null>(null);
+  const [fullScreenStory, setFullScreenStory] = useState(false);
+  useEffect(() => {
+    if (!selected || screen !== 'ar') setFullScreenStory(false);
+  }, [selected, screen]);
   const { visited, saved, visit, toggleSaved, error: progressError } = useExplorationProgress();
   const [panel, setPanel] = useState<Panel>(null);
   const [layerPanel, setLayerPanel] = useState(false);
@@ -124,6 +129,7 @@ export default function HistoryLens() {
 
   const back = () => {
     stopNarration();
+    if (fullScreenStory) return setFullScreenStory(false);
     if (panel) return setPanel(null);
     if (layerPanel) return setLayerPanel(false);
     if (selected) return setSelected(null);
@@ -140,7 +146,7 @@ export default function HistoryLens() {
       return true;
     });
     return () => subscription.remove();
-  }, [screen, selected, panel, layerPanel, mapFrom]);
+  }, [screen, selected, panel, layerPanel, mapFrom, fullScreenStory]);
   useEffect(() => {
     if (selected) {
       grow.setValue(1);
@@ -348,6 +354,7 @@ export default function HistoryLens() {
               stopId={geo.spot ? 'gun' : placementStop}
               speaking={speaking}
               onListen={listen}
+              onExpand={() => setFullScreenStory(true)}
               selected={selected === (geo.spot ? 'gun' : placementStop)}
               visible={locationUnlocked && markerLayerVisible}
               opacity={markerOpacity}
@@ -458,8 +465,8 @@ export default function HistoryLens() {
                       <Icon name="footsteps" />
                       <Text style={s.hintText}>
                         {selected
-                          ? 'Tap another block to keep exploring.'
-                          : 'Tap a red or blue block to discover its story.'}
+                          ? 'Tap another circle to keep exploring.'
+                          : 'Tap a red or blue circle to discover its story.'}
                       </Text>
                     </View>
                   )}
@@ -635,6 +642,7 @@ export default function HistoryLens() {
                     stackActions={stackActions}
                     onClose={dismissStory}
                     onListen={listen}
+                    onExpand={() => setFullScreenStory(true)}
                     onSources={() => setPanel('sources')}
                   />
                 ) : mode === 'compare' ? (
@@ -766,6 +774,14 @@ export default function HistoryLens() {
           setPanel(null);
         }}
       />
+      {fullScreenStory && detail && (
+        <StoryReader
+          detail={detail}
+          speaking={speaking}
+          onListen={listen}
+          onClose={() => setFullScreenStory(false)}
+        />
+      )}
     </View>
   );
 }
