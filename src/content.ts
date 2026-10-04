@@ -89,11 +89,11 @@ export const layers: {
 // The storage format retains its legacy name; the interface is location-neutral.
 export const harvardTestStop: StoryStop = {
   ...stops[0],
-  title: 'My saved location',
-  category: 'Your place',
-  year: 'Saved on this phone',
+  title: 'Old Town Hall',
+  category: 'Example story',
+  year: '1892',
   description:
-    'This marker belongs to your saved test location. Tap the red box to open its AR information panel.',
+    'Imagine this was the town’s gathering place: a hall for meetings, celebrations, and everyday community life.',
   story:
-    'Every place can hold a story. This is your saved test location, ready for information about an object, a building, or a person. The marker stays in the AR scene as you move. Save its global position to reopen it near the same location later; GPS accuracy can shift its placement.',
+    'In this fictional example, the hall opened in 1892. Neighbors gathered here to discuss local issues, share news, and celebrate together. Over the years, the building became a library and later a community center. Look for the tall windows and stone entrance: details that hint at how the space was used. This sample shows how a real site’s researched history could appear beside it in AR.',
 };

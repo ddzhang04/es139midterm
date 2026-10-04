@@ -3,16 +3,44 @@ import { ViroMaterials, ViroNode, ViroQuad, ViroText } from '@reactvision/react-
 import { stops } from '../content';
 
 ViroMaterials.createMaterials({
-  ARInfoBackground: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
-  ARInfoButton: { diffuseColor: '#214E45', lightingModel: 'Constant', cullMode: 'None' },
+  ARInfoBackground: {
+    diffuseColor: '#F4F1E9',
+    lightingModel: 'Constant',
+    cullMode: 'None',
+    writesToDepthBuffer: false,
+    readsFromDepthBuffer: false,
+  },
+  ARInfoButton: {
+    diffuseColor: '#214E45',
+    lightingModel: 'Constant',
+    cullMode: 'None',
+    writesToDepthBuffer: false,
+    readsFromDepthBuffer: false,
+  },
+  ARInfoText: {
+    lightingModel: 'Constant',
+    cullMode: 'None',
+    writesToDepthBuffer: false,
+    readsFromDepthBuffer: false,
+  },
 });
+
+// Explicit draw order and flat text prevent the card/background from obscuring
+// glyphs. Bounds constrain each field independently of its font size.
+const flatText = {
+  extrusionDepth: 0,
+  materials: ['ARInfoText'],
+  renderingOrder: 12,
+  textClipMode: 'ClipToBounds' as const,
+  textLineBreakMode: 'WordWrap' as const,
+};
 
 // Short pages keep the complete story legible within a fixed world-space panel.
 export function storyPages(text: string): string[] {
   const pages: string[] = [];
   let page = '';
   for (const word of text.split(/\s+/)) {
-    if (page && page.length + word.length + 1 > 180) {
+    if (page && page.length + word.length + 1 > 120) {
       pages.push(page);
       page = '';
     }
@@ -25,13 +53,26 @@ export function storyPages(text: string): string[] {
 function ARButton({ label, x, onPress }: { label: string; x: number; onPress: () => void }) {
   return (
     <ViroNode position={[x, -0.285, 0.012]}>
-      <ViroQuad width={0.2} height={0.08} materials={['ARInfoButton']} onClick={onPress} />
+      <ViroQuad
+        width={0.2}
+        height={0.08}
+        renderingOrder={11}
+        materials={['ARInfoButton']}
+        onClick={onPress}
+      />
       <ViroText
+        {...flatText}
         text={label}
         width={0.19}
         height={0.07}
-        position={[0, 0, 0.003]}
-        style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'center', textAlignVertical: 'center' }}
+        position={[0, 0, 0.025]}
+        style={{
+          fontFamily: 'Arial',
+          color: '#FFFFFF',
+          fontSize: 7,
+          textAlign: 'center',
+          textAlignVertical: 'center',
+        }}
         onClick={onPress}
       />
     </ViroNode>
@@ -54,49 +95,86 @@ export default function ARInfoPanel({
   const index = Math.min(page, pages.length - 1);
   return (
     <ViroNode position={[0, 0, 0]} transformBehaviors={['billboard']}>
-      <ViroQuad width={0.84} height={0.72} materials={['ARInfoBackground']} />
+      <ViroQuad width={0.84} height={0.8} renderingOrder={10} materials={['ARInfoBackground']} />
       <ViroText
+        {...flatText}
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
         width={0.66}
         height={0.055}
-        position={[-0.025, 0.285, 0.008]}
-        style={{ color: '#A16C22', fontSize: 10, textAlign: 'left' }}
+        position={[-0.025, 0.32, 0.03]}
+        style={{
+          fontFamily: 'Arial',
+          color: '#A16C22',
+          fontSize: 6,
+          textAlign: 'left',
+          textAlignVertical: 'center',
+        }}
         ignoreEventHandling
       />
       <ViroText
+        {...flatText}
         text={detail.title}
         width={0.68}
-        height={0.095}
-        position={[0, 0.2, 0.008]}
-        style={{ color: '#172521', fontSize: 19, fontWeight: 'bold', textAlign: 'left' }}
+        height={0.12}
+        position={[0, 0.21, 0.03]}
+        style={{
+          fontFamily: 'Arial',
+          color: '#172521',
+          fontSize: 11,
+          fontWeight: 'bold',
+          textAlign: 'left',
+          textAlignVertical: 'center',
+        }}
         ignoreEventHandling
       />
       <ViroText
+        {...flatText}
         text={pages[index]}
         width={0.68}
         height={0.3}
-        position={[0, -0.015, 0.008]}
-        style={{ color: '#52605A', fontSize: 14, textAlign: 'left', textAlignVertical: 'top' }}
+        position={[0, -0.015, 0.03]}
+        style={{
+          fontFamily: 'Arial',
+          color: '#52605A',
+          fontSize: 7,
+          textAlign: 'left',
+          textAlignVertical: 'top',
+        }}
         ignoreEventHandling
       />
       <ViroText
+        {...flatText}
         text={`${index + 1} / ${pages.length}`}
         width={0.18}
         height={0.04}
-        position={[0, -0.205, 0.008]}
-        style={{ color: '#52605A', fontSize: 10, textAlign: 'center' }}
+        position={[0, -0.205, 0.03]}
+        style={{
+          fontFamily: 'Arial',
+          color: '#52605A',
+          fontSize: 5,
+          textAlign: 'center',
+          textAlignVertical: 'center',
+        }}
         ignoreEventHandling
       />
       <ViroNode position={[0.365, 0.3, 0.012]}>
-        <ViroQuad width={0.08} height={0.08} materials={['ARInfoButton']} onClick={onClose} />
+        <ViroQuad
+          width={0.08}
+          height={0.08}
+          renderingOrder={11}
+          materials={['ARInfoButton']}
+          onClick={onClose}
+        />
         <ViroText
+          {...flatText}
           text="×"
           width={0.075}
           height={0.075}
-          position={[0, 0, 0.003]}
+          position={[0, 0, 0.025]}
           style={{
             color: '#FFFFFF',
-            fontSize: 20,
+            fontFamily: 'Arial',
+            fontSize: 9,
             textAlign: 'center',
             textAlignVertical: 'center',
           }}
