@@ -16,6 +16,7 @@ import { LayerId, StopId, harvardTestStop, layers, stops } from './src/content';
 import useTestLocation from './src/useTestLocation';
 import SurfaceARView, { supportsSurfaceAR, surfaceInstructions, SurfacePhase } from './src/SurfaceARView';
 
+const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
 const C = { cream: '#F4F1E9', ink: '#172521', green: '#214E45', muted: '#52605A', amber: '#D59A3A', sand: '#F2E1BC', line: '#D5D2C8', glass: 'rgba(20,34,30,0.87)' };
 const pictures = { welcome: require('./assets/welcome-d8381.png'), site: require('./assets/site-8349f.png'), discovery: require('./assets/extra-793de.png'), scene: require('./assets/ar-f55c8.png'), map: require('./assets/extra-62404.png') };
 type Screen = 'welcome' | 'site' | 'map' | 'ar';
@@ -88,6 +89,7 @@ function HistoryLens() {
   function openMap() { setMapFrom(screen); setSelected(null); Speech.stop(); setSpeaking(false); setScreen('map'); }
   function changeMode(next: Mode) { Speech.stop(); setSpeaking(false); setSelected(null); setLayerPanel(false); setMode(next); Haptics.selectionAsync().catch(() => {}); }
   async function enableCamera() {
+    if (uiPreview) { setCamera(false); return; }
     try {
       const result = permission?.granted || permission?.canAskAgain === false ? permission : await requestPermission();
       if (result.granted) { setPlacementRevision(0); setSurfacePhase('scanning'); setCamera(true); }
@@ -101,6 +103,7 @@ function HistoryLens() {
     }
   }
   function toggleCamera() {
+    if (uiPreview) { setPanel('help'); return; }
     if (camera) setCamera(false);
     else void enableCamera();
   }
@@ -154,7 +157,7 @@ function HistoryLens() {
         {camera && !supportsSurfaceAR && <Text style={{ color: 'white', textAlign: 'center', fontSize: 12, marginBottom: 8 }}>Surface AR needs the HistoryLens development build. Expo Go shows screen markers.</Text>}
         {detail && !layerPanel ? <View style={s.detailCard}><View style={s.handle} /><View style={s.between}><View style={{ flex: 1 }}><Text style={s.detailCategory}>{detail.category.toUpperCase()} · {detail.year}</Text><Text accessibilityRole="header" style={s.detailTitle}>{detail.title}</Text></View><RoundButton icon="close" label="Close detail" onPress={() => { setSelected(null); Speech.stop(); setSpeaking(false); }} /></View><Text style={s.detailBody}>{detail.description}</Text><Button compact title={speaking ? 'Stop listening' : 'Listen to Story'} icon="headphones" onPress={listen} /><View style={[s.detailActions, stackActions && { flexDirection: 'column' }]}><Button compact grow={!stackActions} title="View Sources" secondary onPress={() => setPanel('sources')} /><Button compact grow={!stackActions} title="Continue Exploring" secondary onPress={() => { setSelected(null); Speech.stop(); setSpeaking(false); }} /></View></View> : mode === 'compare' ? <View style={s.comparison}><Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text><View style={[s.sliderRow, stackActions && { flexDirection: 'column', borderRadius: 14, paddingVertical: 8 }]}><Text style={s.sliderLabel}>Past · 1864</Text><Slider accessibilityLabel="Historical overlay opacity" accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }} style={stackActions ? { width: '100%', height: 44 } : { flex: 1, height: 44 }} minimumValue={0} maximumValue={100} value={past} onValueChange={setPast} minimumTrackTintColor={C.green} maximumTrackTintColor={C.line} thumbTintColor={C.green} /><Text style={s.sliderLabel}>Present</Text></View></View> : <View style={s.arStatus}><View style={s.liveDot} /><Text style={s.liveText}>{geo.spot ? 'Harvard location test' : nativeAR ? 'Surface AR' : camera ? 'Live camera' : 'Demo scene'} · {visited.length}/4 stories explored</Text></View>}
         {mode === 'scan' && !selected ? <View style={s.scanControls}><RoundButton icon="mapLight" label="Open site map" dark onPress={openMap} /><Pressable accessibilityRole="button" accessibilityLabel="Scan site and reconstruct" onPress={() => changeMode('reconstruct')} style={s.scanButton}><View style={s.scanInner} /></Pressable><RoundButton icon="volume" label="Audio information" dark onPress={() => setPanel('help')} /></View> : <View style={s.modes}>{([{ id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' }, { id: 'compare', icon: 'compare', title: 'Compare' }, { id: 'discover', icon: 'discover', title: 'Discover' }] as const).map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: mode === item.id }} onPress={() => changeMode(item.id)} style={[s.mode, mode === item.id && s.modeSelected]}><Icon name={item.icon} /><Text style={[s.modeText, mode === item.id && { color: C.green, fontFamily: 'Inter_700Bold' }]}>{item.title}</Text></Pressable>)}</View>}
-        <View style={s.arTools}><Pressable accessibilityRole="button" onPress={toggleCamera}><Text style={s.toolText}>{camera ? 'Use demo scene' : 'Use live camera'}</Text></Pressable><Pressable accessibilityRole="button" onPress={openMap}><Text style={s.toolText}>Site map ↗</Text></Pressable></View>
+        <View style={s.arTools}><Pressable accessibilityRole="button" onPress={toggleCamera}><Text style={s.toolText}>{uiPreview ? 'Simulator · demo scene' : camera ? 'Use demo scene' : 'Use live camera'}</Text></Pressable><Pressable accessibilityRole="button" onPress={openMap}><Text style={s.toolText}>Site map ↗</Text></Pressable></View>
       </>} />
     </View>}
     <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={() => setPanel(null)}><View style={[s.scrim, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}><View accessibilityViewIsModal testID="app-modal" style={[s.modal, { maxHeight: height - insets.top - insets.bottom - 32 }]}><ScrollView showsVerticalScrollIndicator={false}>
