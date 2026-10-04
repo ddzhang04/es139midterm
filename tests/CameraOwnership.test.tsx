@@ -55,3 +55,20 @@ test('global restoration does not bypass GPS uncertainty before the spot unlocks
   act(() => screen.getByTestId('surface-session').props.onPhaseChange('limited'));
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
 });
+
+
+test('explicit marker preview remains visible even when GPS is uncertain', async () => {
+  await AsyncStorage.clear(); jest.clearAllMocks();
+  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123 }));
+  jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_options, callback) => {
+    callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 }, timestamp: Date.now() } as Location.LocationObject);
+    return { remove: jest.fn() };
+  });
+  render(<App />); fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
+  expect(screen.getByTestId('surface-session').props.visible).toBe(false);
+  act(() => screen.getByTestId('surface-session').props.onPhaseChange('globalPlaced'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
+  act(() => screen.getByTestId('surface-session').props.onPhaseChange('anchorError'));
+  expect(screen.getByTestId('surface-session').props.visible).toBe(true);
+});

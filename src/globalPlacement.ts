@@ -22,3 +22,15 @@ export function worldToGlobal(position: Vector3, fix: LocationFix, camera: Vecto
   const east = position[0] - camera[0], north = camera[2] - position[2];
   return { latitude: fix.latitude + north / radius / radians, longitude: wrapLongitude(fix.longitude + east / (radius * Math.cos(fix.latitude * radians)) / radians), altitude: usableAltitude(fix) ? fix.altitude! + position[1] - camera[1] : null, altitudeReference: 'WGS84', rotation, scale, horizontalAccuracy: fix.accuracy!, altitudeAccuracy: usableAltitude(fix) ? fix.altitudeAccuracy! : null, savedAt: Date.now() };
 }
+
+export function markerDirection(point: Vector3, camera: { position: Vector3; forward: Vector3; up: Vector3 }) {
+  const delta = point.map((v, i) => v - camera.position[i]);
+  const distance = Math.hypot(...delta);
+  if (distance < 0.3) return 'Marker is at your position. Step back, or preview it in front of you.';
+  const right = [camera.forward[1] * camera.up[2] - camera.forward[2] * camera.up[1], camera.forward[2] * camera.up[0] - camera.forward[0] * camera.up[2], camera.forward[0] * camera.up[1] - camera.forward[1] * camera.up[0]];
+  const dot = (vector: number[]) => delta.reduce((sum, value, i) => sum + value * vector[i], 0);
+  const ahead = dot(camera.forward), side = dot(right), up = dot(camera.up);
+  const horizontal = ahead <= 0 ? 'turn around' : Math.abs(Math.atan2(side, ahead)) > Math.PI / 6 ? side > 0 ? 'turn right' : 'turn left' : 'look ahead';
+  const vertical = Math.abs(Math.atan2(up, Math.hypot(ahead, side))) > Math.PI / 9 ? up > 0 ? ' and look up' : ' and look down' : '';
+  return `Marker ≈ ${distance.toFixed(1)} m away · ${horizontal}${vertical}.`;
+}

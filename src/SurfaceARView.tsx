@@ -9,6 +9,7 @@ export type SurfaceARProps = {
   stopId: StopId;
   testSpot?: TestSpot | null;
   locationFix?: LocationFix | null;
+  onMarkerGuide?: (message: string | null) => void;
   onPlacementSaved?: (placement: GlobalPlacement, savedAt: number) => Promise<void>;
   saveRequest?: number;
   restoreRequest?: number;
@@ -33,7 +34,7 @@ export const persistentAnchorsEnabled = Constants.expoConfig?.extra?.surfaceAnch
 
 export const surfaceInstructions: Record<SurfacePhase, string> = {
   globalWaiting: 'Getting GPS and compass alignment. Move slowly with a clear view.',
-  globalPlaced: 'Floating marker placed. Tap Save global position to keep it after restarting.',
+  globalPlaced: 'Preview marker placed. Tap Save global position to keep it after restarting.',
   globalSaved: 'Global position saved. GPS and compass accuracy may shift its placement.',
   globalRestored: 'Floating marker restored from global coordinates. Look around to find it.',
   saving: 'Saving this AR spot. Slowly scan the surrounding surface.',

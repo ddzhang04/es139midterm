@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, renderHook, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlobalPlacementScene } from '../src/GlobalARScene';
-import { globalToWorld, worldToGlobal } from '../src/globalPlacement';
+import { globalToWorld, markerDirection, worldToGlobal } from '../src/globalPlacement';
 import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
 import type { SurfaceARProps } from '../src/SurfaceARView';
@@ -64,4 +64,26 @@ test('global placement persists across a hook restart and validates corrupt tran
   expect(second.result.current.spot?.placement).toEqual(saved); expect(second.result.current.spot?.anchor).toBeUndefined();
   expect(parseSpot(JSON.stringify({ ...spot, placement: { ...saved, scale: [-1, 1, 1] } }))?.placement).toBeUndefined();
   expect(parseSpot(JSON.stringify({ ...spot, placement: { ...saved, altitude: 'bad' } }))?.placement).toBeUndefined();
+});
+
+
+test('preview appears without GPS but saving still requires a fresh fix', async () => {
+  const app = { ...appProps(), locationFix: null, onAnchorError: jest.fn() };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  expect(view.getByTestId('node').props.position).toEqual([1, 2, 1]);
+  expect(app.onPhaseChange).toHaveBeenLastCalledWith('globalPlaced');
+  await act(async () => view.rerender(<GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, saveRequest: 1 } }} />));
+  expect(app.onPlacementSaved).not.toHaveBeenCalled();
+  expect(app.onAnchorError).toHaveBeenCalledWith(expect.stringContaining('fresh GPS'));
+});
+
+test('guidance distinguishes markers behind, above, beside, and at the camera', () => {
+  const pose = { position: [0, 0, 0] as [number, number, number], forward: [0, 0, -1] as [number, number, number], up: [0, 1, 0] as [number, number, number] };
+  expect(markerDirection([0, 0, -2], pose)).toContain('look ahead');
+  expect(markerDirection([0, 0, 2], pose)).toContain('turn around');
+  expect(markerDirection([4, 3, -2], pose)).toContain('turn right and look up');
+  expect(markerDirection([-4, -3, -2], pose)).toContain('turn left and look down');
+  expect(markerDirection([0, 0, 0], pose)).toContain('Step back');
 });

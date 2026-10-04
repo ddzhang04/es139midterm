@@ -87,6 +87,6 @@ export default function useTestLocation(active: boolean) {
     try { await AsyncStorage.removeItem(TEST_SPOT_KEY); if (generation === operation.current) { setSpot(null); setFix(null); setError(''); } }
     catch { if (generation === operation.current) { record.current = previous; setError('Could not remove the saved spot. Try again.'); } }
   }
-  const nearby = spot && fix ? proximity(spot, fix, now) : null;
+  const nearby = spot && fix ? proximity({ ...spot, latitude: spot.placement?.latitude ?? spot.latitude, longitude: spot.placement?.longitude ?? spot.longitude }, fix, now) : null;
   return { spot, fix, busy, error, loaded, nearby, allowed: !spot || nearby?.state === 'nearby', useCurrentLocation, saveAnchor, savePlacement, clear };
 }
