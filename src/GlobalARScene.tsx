@@ -154,7 +154,7 @@ export function GlobalPlacementScene(
             length={0.12}
             materials={['GlobalMarkerRed']}
             visible={!selection.selected}
-            onClick={selection.toggle}
+            onClick={selection.open}
           />
           <ViroText
             text="+"
@@ -168,7 +168,7 @@ export function GlobalPlacementScene(
               textAlign: 'center',
               textAlignVertical: 'center',
             }}
-            onClick={selection.toggle}
+            onClick={selection.open}
             visible={!selection.selected}
           />
           {selection.selected && (

@@ -202,6 +202,10 @@ test('red box expands a world-space information panel with story pages, audio, a
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
   fireEvent(view.getByTestId('box'), 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
+  // A duplicate native click must leave the panel open, even before app props update.
+  fireEvent(view.getByTestId('box'), 'click');
+  expect(view.getByTestId('box').props.visible).toBe(false);
+  expect(app.onSelect).toHaveBeenCalledTimes(1);
   view.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
   );
@@ -214,7 +218,10 @@ test('red box expands a world-space information panel with story pages, audio, a
       .findByProps({ testID: 'quad' });
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
-  const panel = view.getAllByTestId('node').find((node) => node.props.position?.[1] === 0.08)!;
+  const panel = view
+    .getAllByTestId('node')
+    .find((node) => node.props.transformBehaviors?.includes('billboard'))!;
+  expect(panel.props.position).toEqual([0, 0, 0]);
   expect(panel.props.transformBehaviors).toEqual(['billboard']);
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
@@ -231,6 +238,11 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
   fireEvent(buttonAt(0.365, 0.3), 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
+  expect(view.getByTestId('box').props.visible).toBe(true);
+  expect(text(harvardTestStop.title)).toBeUndefined();
+  fireEvent(view.getByTestId('box'), 'click');
+  expect(text(harvardTestStop.description)).toBeTruthy();
+  expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
 });
 
 test('the plus sign opens the panel and app dismissal restores the box without moving it', () => {

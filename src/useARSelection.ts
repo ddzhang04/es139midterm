@@ -18,13 +18,13 @@ export default function useARSelection(app: SurfaceARProps, id: StopId) {
     setSelected(false);
     latest.current.onDismiss();
   }
-  function toggle() {
-    if (selectedRef.current) close();
-    else {
-      selectedRef.current = true;
-      setSelected(true);
-      latest.current.onSelect(id);
-    }
+  function open() {
+    // A native tap may be delivered by either the box or its plus label.
+    // Opening twice must not immediately collapse the panel again.
+    if (selectedRef.current) return;
+    selectedRef.current = true;
+    setSelected(true);
+    latest.current.onSelect(id);
   }
-  return { selected, toggle, close };
+  return { selected, open, close };
 }
