@@ -31,6 +31,7 @@ ViroMaterials.createMaterials({
     lightingModel: 'Constant',
     writesToDepthBuffer: false,
     readsFromDepthBuffer: false,
+    colorWritesMask: 'None',
   },
 });
 type Navigator = { viroAppProps: SurfaceARProps };
@@ -129,6 +130,8 @@ export function GlobalPlacementScene(
     })();
   }, [app.saveRequest]);
   const savedTransform = app.revision === 0 ? app.testSpot?.placement : null;
+  const markerDistance = point ? Math.hypot(...point.map((v, i) => v - facing.position[i])) : 0;
+  const tapRadius = Math.max(0.34, Math.min(1.2, markerDistance * 0.14));
   return (
     <ViroARScene
       onTrackingUpdated={(state) => {
@@ -158,12 +161,13 @@ export function GlobalPlacementScene(
           visible={app.visible}
           opacity={app.opacity}
         >
-          {/* Keep a small nonzero opacity so the native hit target remains
-              active. Its bounds provide tap padding from every viewing angle. */}
+          {/* Invisible through the material's color-write mask, not opacity:
+              native hit testing skips geometry below its opacity threshold.
+              More distant GPS-restored markers retain usable tap padding. */}
           <ViroSphere
-            radius={0.34}
+            radius={tapRadius}
             materials={['GlobalMarkerTouch']}
-            opacity={0.01}
+            opacity={1}
             visible={!selection.selected}
             highAccuracyEvents={false}
             onClickState={selection.press}

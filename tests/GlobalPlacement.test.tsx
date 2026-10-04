@@ -118,6 +118,18 @@ test('floating marker stays fixed while walking and restores without surface or 
   expect(position[1]).toBeCloseTo(0);
   expect(position[2]).toBeCloseTo(-2);
   expect(next.onPhaseChange).toHaveBeenLastCalledWith('globalRestored');
+  const restoredTarget = restored.getByTestId('marker-touch-target');
+  expect(restoredTarget.props.opacity).toBe(1);
+  fireEvent(restoredTarget, 'clickState', 1);
+  expect(next.onSelect).toHaveBeenCalledWith('gun');
+  expect(restored.getByTestId('box').props.visible).toBe(false);
+  expect(
+    restored.getAllByTestId('text').some((text) => text.props.text === harvardTestStop.title),
+  ).toBe(true);
+  fireEvent(
+    restored.getAllByTestId('text').find((text) => text.props.text === '×')!,
+    'click',
+  );
   restored.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...next, revision: 1 } }} />,
   );

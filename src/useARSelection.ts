@@ -25,6 +25,11 @@ export default function useARSelection(app: SurfaceARProps, id: StopId) {
     if (selectedRef.current) return;
     selectedRef.current = true;
     setSelected(true);
+    if (__DEV__)
+      console.info('[HistoryLens AR interaction]', {
+        event: 'open',
+        restored: latest.current.revision === 0 && !!latest.current.testSpot?.placement,
+      });
     latest.current.onSelect(id);
   }, [id]);
   const press = useCallback(
