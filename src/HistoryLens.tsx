@@ -430,28 +430,30 @@ export default function HistoryLens() {
                   {nativeAR ? (
                     <View style={s.hintCard}>
                       <Text accessibilityLiveRegion="polite" style={s.hintText}>
-                        {!markerLayerVisible
-                          ? 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
-                          : markerOpacity === 0
-                            ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
-                            : surfacePhase === 'anchorError'
-                              ? anchorError || surfaceInstructions.anchorError
-                              : [
-                                    'saving',
-                                    'resolving',
-                                    'aligning',
-                                    'saved',
-                                    'restored',
-                                    'globalWaiting',
-                                    'globalPlaced',
-                                    'globalSaved',
-                                    'globalRestored',
-                                  ].includes(surfacePhase)
-                                ? surfaceInstructions[surfacePhase]
-                                : geo.spot && !locationUnlocked
-                                  ? 'Return near your saved spot with a precise location reading to unlock the tile.'
-                                  : surfaceInstructions[surfacePhase]}
-                        {geo.spot && markerGuide ? `\n${markerGuide}` : ''}
+                        {selected
+                          ? 'AR information open. Tap × on the panel to close.'
+                          : !markerLayerVisible
+                            ? 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
+                            : markerOpacity === 0
+                              ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
+                              : surfacePhase === 'anchorError'
+                                ? anchorError || surfaceInstructions.anchorError
+                                : [
+                                      'saving',
+                                      'resolving',
+                                      'aligning',
+                                      'saved',
+                                      'restored',
+                                      'globalWaiting',
+                                      'globalPlaced',
+                                      'globalSaved',
+                                      'globalRestored',
+                                    ].includes(surfacePhase)
+                                  ? surfaceInstructions[surfacePhase]
+                                  : geo.spot && !locationUnlocked
+                                    ? 'Return near your saved spot with a precise location reading to unlock the tile.'
+                                    : surfaceInstructions[surfacePhase]}
+                        {!selected && geo.spot && markerGuide ? `\n${markerGuide}` : ''}
                       </Text>
                     </View>
                   ) : mode === 'compare' ? (
@@ -580,10 +582,11 @@ export default function HistoryLens() {
                         <Pressable
                           key={stop.id}
                           accessibilityRole="button"
+                          accessibilityLabel={`Open AR information for ${stop.title}`}
                           accessibilityState={{ selected: placementStop === stop.id }}
                           onPress={() => {
-                            dismissStory();
                             setPlacementStop(stop.id);
+                            openStop(stop.id);
                           }}
                           style={[
                             s.tag,

@@ -197,3 +197,25 @@ test('native marker opens AR information without a screen overlay or session res
   expect(screen.getByTestId('surface-session').props.revision).toBe(revision);
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
 });
+
+test('the red Harvard location button opens AR information for the current marker', async () => {
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Open AR information for Harvard test spot'));
+  expect(screen.getByTestId('surface-session').props.selected).toBe(true);
+  expect(mockSessionStarted).toHaveBeenCalledTimes(1);
+  expect(mockSessionStopped).not.toHaveBeenCalled();
+});

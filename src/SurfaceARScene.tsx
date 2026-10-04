@@ -1,3 +1,4 @@
+import useARSelection from './useARSelection';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -55,6 +56,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     offset: [number, number, number];
   } | null>(null);
   const stop = app.testSpot ? harvardTestStop : stops.find((item) => item.id === app.stopId)!;
+  const selection = useARSelection(app, stop.id);
   const offset = useRef<[number, number, number]>([0, 0, 0]);
   const operation = useRef(0);
   const pending = useRef(false);
@@ -275,7 +277,8 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         position={[0, 0.004, 0]}
         rotation={[-90, 0, 0]}
         materials={[stop.color === '#3485E8' ? 'HistoryLensBlue' : 'HistoryLensRed']}
-        onClick={() => (app.selected ? app.onDismiss() : app.onSelect(stop.id))}
+        visible={!selection.selected}
+        onClick={selection.toggle}
       />
       <ViroText
         text="+"
@@ -284,13 +287,14 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         position={[0, 0.006, 0]}
         rotation={[-90, 0, 0]}
         style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }}
-        ignoreEventHandling
+        onClick={selection.toggle}
+        visible={!selection.selected}
       />
-      {app.selected && (
+      {selection.selected && (
         <ARInfoPanel
           key={stop.title}
           detail={stop}
-          onClose={app.onDismiss}
+          onClose={selection.close}
           onListen={app.onListen}
           speaking={app.speaking}
         />

@@ -1,3 +1,4 @@
+import useARSelection from './useARSelection';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -29,6 +30,7 @@ export function GlobalPlacementScene(
   { sceneNavigator }: { sceneNavigator: Navigator } = {} as { sceneNavigator: Navigator },
 ) {
   const app = sceneNavigator.viroAppProps;
+  const selection = useARSelection(app, 'gun');
   const latest = useRef(app);
   latest.current = app;
   const camera = useRef<ViroCameraTransform | null>(null);
@@ -151,7 +153,8 @@ export function GlobalPlacementScene(
             height={0.36}
             length={0.12}
             materials={['GlobalMarkerRed']}
-            onClick={() => (app.selected ? app.onDismiss() : app.onSelect('gun'))}
+            visible={!selection.selected}
+            onClick={selection.toggle}
           />
           <ViroText
             text="+"
@@ -165,13 +168,14 @@ export function GlobalPlacementScene(
               textAlign: 'center',
               textAlignVertical: 'center',
             }}
-            ignoreEventHandling
+            onClick={selection.toggle}
+            visible={!selection.selected}
           />
-          {app.selected && (
+          {selection.selected && (
             <ARInfoPanel
               key={harvardTestStop.title}
               detail={harvardTestStop}
-              onClose={app.onDismiss}
+              onClose={selection.close}
               onListen={app.onListen}
               speaking={app.speaking}
             />

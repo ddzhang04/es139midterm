@@ -53,7 +53,7 @@ export default function ARInfoPanel({
   const pages = [detail.description, ...storyPages(detail.story)];
   const index = Math.min(page, pages.length - 1);
   return (
-    <ViroNode position={[0, 0.62, 0]} transformBehaviors={['billboard']}>
+    <ViroNode position={[0, 0.08, 0.1]} transformBehaviors={['billboard']}>
       <ViroQuad width={0.84} height={0.72} materials={['ARInfoBackground']} />
       <ViroText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}

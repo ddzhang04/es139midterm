@@ -214,7 +214,7 @@ test('red box expands a world-space information panel with story pages, audio, a
       .findByProps({ testID: 'quad' });
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
-  const panel = view.getAllByTestId('node').find((node) => node.props.position?.[1] === 0.62)!;
+  const panel = view.getAllByTestId('node').find((node) => node.props.position?.[1] === 0.08)!;
   expect(panel.props.transformBehaviors).toEqual(['billboard']);
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
@@ -231,4 +231,22 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
   fireEvent(buttonAt(0.365, 0.3), 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
+});
+
+test('the plus sign opens the panel and app dismissal restores the box without moving it', () => {
+  const app = appProps();
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  fireEvent(view.getByTestId('text'), 'click');
+  expect(app.onSelect).toHaveBeenCalledWith('gun');
+  expect(view.getByTestId('box').props.visible).toBe(false);
+  view.rerender(
+    <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
+  );
+  view.rerender(
+    <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: false } }} />,
+  );
+  expect(view.getByTestId('box').props.visible).toBe(true);
+  expect(view.getByTestId('node').props.position).toEqual([1, 2, 1]);
 });
