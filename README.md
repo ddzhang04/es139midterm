@@ -60,8 +60,7 @@ Moving or removing a test spot deliberately clears its local placement. Global m
 - `App.tsx`: font loading and the safe-area provider.
 - `src/HistoryLens.tsx`: screen navigation and exploration coordination.
 - `src/screens/`: welcome, site overview, site map, and application panels.
-- `src/components/`: historical layer controls.
-- `src/screens/StoryInfoScreen.tsx`: marker information, narration, and sources. Opening a story keeps the underlying AR session mounted so returning preserves its placement.
+- `src/components/`: historical layers, demo story cards, and the world-space AR information panel. Tapping a native marker opens a camera-facing panel at the marker with paged story text, narration, and a close button.
 - `src/ui/`: shared controls, theme colors, and styles.
 - `src/useCameraSession.ts`: camera permission and foreground/session lifecycle.
 - `src/useNarration.ts`: narration state and stale-callback protection.

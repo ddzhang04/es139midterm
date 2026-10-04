@@ -38,7 +38,7 @@ import SiteOverviewScreen from './screens/SiteOverviewScreen';
 import SiteMapScreen from './screens/SiteMapScreen';
 import AppPanel, { type Panel } from './screens/AppPanel';
 import HistoricalLayers from './components/HistoricalLayers';
-import StoryInfoScreen from './screens/StoryInfoScreen';
+import StoryCard from './components/StoryCard';
 const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
 type Screen = 'welcome' | 'site' | 'map' | 'ar';
 type Mode = 'scan' | 'reconstruct' | 'compare' | 'discover';
@@ -99,7 +99,6 @@ export default function HistoryLens() {
       setPreviewSpot(null);
     } else if (geo.spot && geo.nearby?.state === 'nearby') setUnlockedSpot(geo.spot.savedAt);
   }, [screen, geo.spot?.savedAt, geo.nearby?.state, surfacePhase]);
-  const showingStory = screen === 'ar' && !!detail && !layerPanel;
   const nativeAR = camera && !!permission?.granted && supportsSurfaceAR && foreground;
   const placedStop = geo.spot ? harvardTestStop : stops.find((stop) => stop.id === placementStop)!;
   const markerLayerVisible =
@@ -328,8 +327,6 @@ export default function HistoryLens() {
       {screen === 'ar' && (
         <View
           style={s.ar}
-          accessibilityElementsHidden={showingStory}
-          importantForAccessibility={showingStory ? 'no-hide-descendants' : 'auto'}
           onLayout={(event) => {
             const { width, height } = event.nativeEvent.layout;
             setARSize((previous) =>
@@ -350,6 +347,8 @@ export default function HistoryLens() {
               onAnchorError={setAnchorError}
               onAnchorSaved={geo.saveAnchor}
               stopId={geo.spot ? 'gun' : placementStop}
+              speaking={speaking}
+              onListen={listen}
               selected={selected === (geo.spot ? 'gun' : placementStop)}
               visible={locationUnlocked && markerLayerVisible}
               opacity={markerOpacity}
@@ -622,7 +621,16 @@ export default function HistoryLens() {
                     markers.
                   </Text>
                 )}
-                {mode === 'compare' ? (
+                {detail && !layerPanel && !nativeAR ? (
+                  <StoryCard
+                    detail={detail}
+                    speaking={speaking}
+                    stackActions={stackActions}
+                    onClose={dismissStory}
+                    onListen={listen}
+                    onSources={() => setPanel('sources')}
+                  />
+                ) : mode === 'compare' ? (
                   <View style={s.comparison}>
                     <Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text>
                     <View
@@ -733,16 +741,6 @@ export default function HistoryLens() {
             }
           />
         </View>
-      )}
-      {showingStory && detail && (
-        <StoryInfoScreen
-          covered={panel !== null}
-          detail={detail}
-          speaking={speaking}
-          onClose={dismissStory}
-          onListen={listen}
-          onSources={() => setPanel('sources')}
-        />
       )}
       <AppPanel
         panel={panel}

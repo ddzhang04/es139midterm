@@ -31,6 +31,8 @@ export type SurfaceARProps = {
   restoreRequest?: number;
   onAnchorError?: (message: string) => void;
   onAnchorSaved?: (anchor: PersistentAnchor, savedAt: number) => Promise<void>;
+  speaking?: boolean;
+  onListen?: () => void;
   selected: boolean;
   visible: boolean;
   opacity: number;

@@ -77,7 +77,9 @@ test('flat anchored tile opens a world-space rectangle and reposition resets pla
   fireEvent(tile, 'click');
   expect(app.onSelect).toHaveBeenCalledWith('gun');
   view.rerender(<PlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />);
-  expect(view.getAllByTestId('quad')).toHaveLength(2);
+  expect(
+    view.getAllByTestId('quad').some((quad) => quad.props.materials?.includes('ARInfoBackground')),
+  ).toBe(true);
   expect(
     view
       .getAllByTestId('node')

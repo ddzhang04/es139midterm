@@ -1,3 +1,4 @@
+import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import {
@@ -5,7 +6,6 @@ import {
   ViroARScene,
   ViroNode,
   ViroBox,
-  ViroQuad,
   ViroText,
   ViroMaterials,
   ViroTrackingStateConstants,
@@ -23,7 +23,6 @@ import { harvardTestStop } from './content';
 
 ViroMaterials.createMaterials({
   GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' },
-  GlobalMarkerCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
 });
 type Navigator = { viroAppProps: SurfaceARProps };
 export function GlobalPlacementScene(
@@ -169,25 +168,13 @@ export function GlobalPlacementScene(
             ignoreEventHandling
           />
           {app.selected && (
-            <ViroNode position={[0, 0.45, 0]} transformBehaviors={['billboard']}>
-              <ViroQuad width={0.64} height={0.4} materials={['GlobalMarkerCard']} />
-              <ViroText
-                text={harvardTestStop.title}
-                width={0.54}
-                height={0.07}
-                position={[0, 0.12, 0.006]}
-                style={{ color: '#172521', fontSize: 19, textAlign: 'left' }}
-                ignoreEventHandling
-              />
-              <ViroText
-                text={harvardTestStop.description}
-                width={0.54}
-                height={0.22}
-                position={[0, -0.03, 0.006]}
-                style={{ color: '#52605A', fontSize: 12, textAlign: 'left' }}
-                ignoreEventHandling
-              />
-            </ViroNode>
+            <ARInfoPanel
+              key={harvardTestStop.title}
+              detail={harvardTestStop}
+              onClose={app.onDismiss}
+              onListen={app.onListen}
+              speaking={app.speaking}
+            />
           )}
         </ViroNode>
       )}

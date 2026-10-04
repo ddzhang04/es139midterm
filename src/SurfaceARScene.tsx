@@ -1,3 +1,4 @@
+import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
@@ -24,7 +25,6 @@ ViroMaterials.createMaterials({
   HistoryLensRed: { diffuseColor: '#E75049', lightingModel: 'Constant', cullMode: 'None' },
   HistoryLensBlue: { diffuseColor: '#3485E8', lightingModel: 'Constant', cullMode: 'None' },
   HistoryLensSurface: { diffuseColor: '#D59A3A55', lightingModel: 'Constant', cullMode: 'None' },
-  HistoryLensCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
 });
 
 type SceneProps = {
@@ -287,41 +287,13 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         ignoreEventHandling
       />
       {app.selected && (
-        <ViroNode position={[0, 0.42, 0]} transformBehaviors={['billboard']}>
-          <ViroQuad width={0.64} height={0.38} materials={['HistoryLensCard']} />
-          <ViroText
-            text={`${stop.category.toUpperCase()} · ${stop.year}`}
-            width={0.54}
-            height={0.04}
-            position={[-0.01, 0.13, 0.006]}
-            style={{ color: '#A16C22', fontSize: 10, textAlign: 'left' }}
-            ignoreEventHandling
-          />
-          <ViroText
-            text={stop.title}
-            width={0.54}
-            height={0.07}
-            position={[-0.01, 0.07, 0.006]}
-            style={{ color: '#172521', fontSize: 19, fontWeight: 'bold', textAlign: 'left' }}
-            ignoreEventHandling
-          />
-          <ViroText
-            text={stop.description}
-            width={0.54}
-            height={0.16}
-            position={[-0.01, -0.045, 0.006]}
-            style={{ color: '#52605A', fontSize: 12, textAlign: 'left', textAlignVertical: 'top' }}
-            ignoreEventHandling
-          />
-          <ViroText
-            text="×"
-            width={0.07}
-            height={0.07}
-            position={[0.275, 0.145, 0.008]}
-            style={{ color: '#214E45', fontSize: 20, textAlign: 'center' }}
-            onClick={app.onDismiss}
-          />
-        </ViroNode>
+        <ARInfoPanel
+          key={stop.title}
+          detail={stop}
+          onClose={app.onDismiss}
+          onListen={app.onListen}
+          speaking={app.speaking}
+        />
       )}
     </ViroNode>
   );

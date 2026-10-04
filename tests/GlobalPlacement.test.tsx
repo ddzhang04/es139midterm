@@ -5,6 +5,8 @@ import { GlobalPlacementScene } from '../src/GlobalARScene';
 import { globalToWorld, markerDirection, worldToGlobal } from '../src/globalPlacement';
 import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
+import { harvardTestStop } from '../src/content';
+import { storyPages } from '../src/components/ARInfoPanel';
 import type { SurfaceARProps } from '../src/SurfaceARView';
 jest.mock('@reactvision/react-viro', () => {
   const React = require('react');
@@ -191,4 +193,42 @@ test('global save reports completion after React replays mounting effects', asyn
   );
   expect(app.onPlacementSaved).toHaveBeenCalledTimes(1);
   expect(app.onPhaseChange).toHaveBeenLastCalledWith('globalSaved');
+});
+
+test('red box expands a world-space information panel with story pages, audio, and close', () => {
+  const app = { ...appProps(), onListen: jest.fn() };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  fireEvent(view.getByTestId('box'), 'click');
+  expect(app.onSelect).toHaveBeenCalledWith('gun');
+  view.rerender(
+    <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
+  );
+  const text = (value: string) =>
+    view.getAllByTestId('text').find((item) => item.props.text === value);
+  const buttonAt = (x: number, y = -0.285) =>
+    view
+      .getAllByTestId('node')
+      .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
+      .findByProps({ testID: 'quad' });
+  expect(text(harvardTestStop.title)).toBeTruthy();
+  expect(text(harvardTestStop.description)).toBeTruthy();
+  const panel = view.getAllByTestId('node').find((node) => node.props.position?.[1] === 0.62)!;
+  expect(panel.props.transformBehaviors).toEqual(['billboard']);
+  const pages = storyPages(harvardTestStop.story);
+  for (const page of pages) {
+    fireEvent(buttonAt(0.25), 'click');
+    expect(text(page)).toBeTruthy();
+  }
+  expect(pages.join(' ')).toBe(harvardTestStop.story);
+  expect(text('Next')).toBeUndefined();
+  fireEvent(buttonAt(-0.25), 'click');
+  expect(text('Next')).toBeTruthy();
+  fireEvent(buttonAt(0), 'click');
+  expect(app.onListen).toHaveBeenCalledTimes(1);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [4, 2, 3] });
+  expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
+  fireEvent(buttonAt(0.365, 0.3), 'click');
+  expect(app.onDismiss).toHaveBeenCalledTimes(1);
 });
