@@ -90,13 +90,14 @@ function ARButton({
       />
       <ARText
         text={label}
+        textClipMode="None"
         width={width - 0.02}
         height={0.1}
         position={[0, 0, 0.025]}
         style={{
           fontFamily: 'Arial',
           color: '#FFFFFF',
-          fontSize: 9,
+          fontSize: 5,
           textAlign: 'center',
           textAlignVertical: 'center',
         }}
@@ -140,12 +141,12 @@ export default function ARInfoPanel({
       <ARText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
         width={0.84}
-        height={0.07}
-        position={[-0.045, 0.405, 0.03]}
+        height={0.1}
+        position={[-0.045, 0.435, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#6D4817',
-          fontSize: 8,
+          fontSize: 6,
           textAlign: 'left',
           textAlignVertical: 'center',
         }}
@@ -154,12 +155,12 @@ export default function ARInfoPanel({
       <ARText
         text={detail.title}
         width={0.92}
-        height={0.16}
-        position={[0, 0.3, 0.03]}
+        height={0.22}
+        position={[0, 0.27, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
-          fontSize: 14,
+          fontSize: 8.5,
           fontWeight: 'bold',
           textAlign: 'left',
           textAlignVertical: 'center',
@@ -169,12 +170,12 @@ export default function ARInfoPanel({
       <ARText
         text={pages[index]}
         width={0.92}
-        height={0.42}
-        position={[0, 0, 0.03]}
+        height={0.36}
+        position={[0, -0.025, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
-          fontSize: 9,
+          fontSize: 6.5,
           textAlign: 'left',
           textAlignVertical: 'top',
         }}
@@ -183,12 +184,12 @@ export default function ARInfoPanel({
       <ARText
         text={`${index + 1} / ${pages.length}`}
         width={0.18}
-        height={0.06}
+        height={0.09}
         position={[0, -0.265, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
-          fontSize: 7,
+          fontSize: 4.5,
           textAlign: 'center',
           textAlignVertical: 'center',
         }}
@@ -204,13 +205,14 @@ export default function ARInfoPanel({
         />
         <ARText
           text="×"
+          textClipMode="None"
           width={0.1}
           height={0.1}
           position={[0, 0, 0.025]}
           style={{
             color: '#FFFFFF',
             fontFamily: 'Arial',
-            fontSize: 12,
+            fontSize: 6,
             textAlign: 'center',
             textAlignVertical: 'center',
           }}
