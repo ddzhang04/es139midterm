@@ -7,9 +7,23 @@ module.exports = ({ config }) => {
   const enabled = !uiPreview && Boolean(rvApiKey && rvProjectId);
   return {
     ...config,
-    plugins: config.plugins.filter(plugin => !uiPreview || (Array.isArray(plugin) ? plugin[0] : plugin) !== '@reactvision/react-viro').map(plugin => Array.isArray(plugin) && plugin[0] === '@reactvision/react-viro'
-      ? [plugin[0], { ...plugin[1], provider: enabled ? 'reactvision' : 'none', ...(enabled ? { rvApiKey, rvProjectId } : {}) }]
-      : plugin),
+    plugins: config.plugins
+      .filter(
+        (plugin) =>
+          !uiPreview || (Array.isArray(plugin) ? plugin[0] : plugin) !== '@reactvision/react-viro',
+      )
+      .map((plugin) =>
+        Array.isArray(plugin) && plugin[0] === '@reactvision/react-viro'
+          ? [
+              plugin[0],
+              {
+                ...plugin[1],
+                provider: enabled ? 'reactvision' : 'none',
+                ...(enabled ? { rvApiKey, rvProjectId } : {}),
+              },
+            ]
+          : plugin,
+      ),
     extra: { ...config.extra, uiPreview, surfaceAnchorProvider: enabled ? 'reactvision' : 'none' },
   };
 };

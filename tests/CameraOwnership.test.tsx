@@ -11,10 +11,18 @@ jest.mock('../src/SurfaceARView', () => {
   const React = require('react');
   const { View } = require('react-native');
   const original = jest.requireActual('../src/SurfaceARView');
-  return { __esModule: true, ...original, supportsSurfaceAR: true, default: (props: object) => {
-    React.useEffect(() => { mockSessionStarted(); return () => mockSessionStopped(); }, []);
-    return React.createElement(View, { ...props, testID: 'surface-session' });
-  } };
+  return {
+    __esModule: true,
+    ...original,
+    supportsSurfaceAR: true,
+    default: (props: object) => {
+      React.useEffect(() => {
+        mockSessionStarted();
+        return () => mockSessionStopped();
+      }, []);
+      return React.createElement(View, { ...props, testID: 'surface-session' });
+    },
+  };
 });
 
 test('GPS drift keeps an unlocked tile and its AR session alive', async () => {
@@ -27,28 +35,52 @@ test('GPS drift keeps an unlocked tile and its AR session alive', async () => {
 
   await waitFor(() => expect(Location.watchPositionAsync).toHaveBeenCalled());
   const callback = jest.mocked(Location.watchPositionAsync).mock.calls.at(-1)![1];
-  act(() => callback({ coords: { latitude: 42.3765, longitude: -71.1169, accuracy: 5 }, timestamp: Date.now() } as Location.LocationObject));
+  act(() =>
+    callback({
+      coords: { latitude: 42.3765, longitude: -71.1169, accuracy: 5 },
+      timestamp: Date.now(),
+    } as Location.LocationObject),
+  );
   await waitFor(() => expect(screen.getByTestId('surface-session').props.visible).toBe(true));
   expect(screen.queryByTestId('native-camera')).toBeNull();
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
   expect(mockSessionStopped).not.toHaveBeenCalled();
-  act(() => callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 5 }, timestamp: Date.now() } as Location.LocationObject));
+  act(() =>
+    callback({
+      coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 5 },
+      timestamp: Date.now(),
+    } as Location.LocationObject),
+  );
   await waitFor(() => expect(screen.getByTestId('surface-session').props.visible).toBe(true));
   expect(mockSessionStarted).toHaveBeenCalledTimes(1);
 });
 
-
 test('global restoration does not bypass GPS uncertainty before the spot unlocks', async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
-  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123, anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] } }));
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+      anchor: { id: 'saved', expiresAt: Date.now() + 86400000, offset: [0, 0, 0] },
+    }),
+  );
   jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_options, callback) => {
-    callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 }, timestamp: Date.now() } as Location.LocationObject);
+    callback({
+      coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 },
+      timestamp: Date.now(),
+    } as Location.LocationObject);
     return { remove: jest.fn() };
   });
   render(<App />);
   fireEvent.press(screen.getByText('Explore This Site'));
-  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot?.anchor?.id).toBe('saved'));
+  await waitFor(() =>
+    expect(screen.getByTestId('surface-session').props.testSpot?.anchor?.id).toBe('saved'),
+  );
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
   act(() => screen.getByTestId('surface-session').props.onPhaseChange('globalRestored'));
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
@@ -56,15 +88,28 @@ test('global restoration does not bypass GPS uncertainty before the spot unlocks
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
 });
 
-
 test('explicit marker preview remains visible even when GPS is uncertain', async () => {
-  await AsyncStorage.clear(); jest.clearAllMocks();
-  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123 }));
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
   jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_options, callback) => {
-    callback({ coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 }, timestamp: Date.now() } as Location.LocationObject);
+    callback({
+      coords: { latitude: 42.3745, longitude: -71.1169, accuracy: 100 },
+      timestamp: Date.now(),
+    } as Location.LocationObject);
     return { remove: jest.fn() };
   });
-  render(<App />); fireEvent.press(screen.getByText('Explore This Site'));
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
   expect(screen.getByTestId('surface-session').props.visible).toBe(false);
   act(() => screen.getByTestId('surface-session').props.onPhaseChange('globalPlaced'));
@@ -74,7 +119,8 @@ test('explicit marker preview remains visible even when GPS is uncertain', async
 });
 
 test('Harvard marker ignores hidden stories from a previously selected demo stop', async () => {
-  await AsyncStorage.clear(); jest.clearAllMocks();
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
   render(<App />);
   fireEvent.press(screen.getByText('View Site Map'));
   fireEvent.press(screen.getByLabelText('Stop 4: Meet Elias Reed'));
@@ -92,9 +138,20 @@ test('Harvard marker ignores hidden stories from a previously selected demo stop
 });
 
 test('show marker restores its layer and opacity when controls have hidden it', async () => {
-  await AsyncStorage.clear(); jest.clearAllMocks();
-  await AsyncStorage.setItem(TEST_SPOT_KEY, JSON.stringify({ name: 'Harvard test spot', latitude: 42.3745, longitude: -71.1169, radius: 50, savedAt: 123 }));
-  render(<App />); fireEvent.press(screen.getByText('Explore This Site'));
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Scan site and reconstruct'));
   fireEvent.press(screen.getByLabelText('Choose historical layers'));
@@ -108,4 +165,16 @@ test('show marker restores its layer and opacity when controls have hidden it', 
   expect(screen.getByTestId('surface-session').props.visible).toBe(true);
   expect(screen.getByTestId('surface-session').props.opacity).toBe(1);
   expect(screen.getByTestId('surface-session').props.revision).toBe(1);
+});
+
+test('visiting the site map releases AR and returning resumes camera exploration', async () => {
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Open site map'));
+  expect(screen.queryByTestId('surface-session')).toBeNull();
+  fireEvent.press(screen.getByLabelText('Go back'));
+  await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
 });

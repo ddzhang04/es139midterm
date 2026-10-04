@@ -1,74 +1,92 @@
 # HistoryLens
 
-A native iOS and Android prototype built with React Native and Expo. The UI follows the provided Figma design and demo, using the original local imagery, icons, Inter typography, and cream/green/amber palette.
+A native iOS and Android prototype built with React Native, Expo SDK 57, and Viro 2.57.3. It explores historical sites through red object/person markers, blue structure markers, information cards, narration, a site map, and historical layers. The bundled Battery Point content and imagery illustrate a fictional site.
 
-## Run surface AR on your phone
-
-Actual surface AR requires a HistoryLens development build, because Expo Go does not include the native Viro AR engine. The project uses Expo SDK 57 and Viro 2.57.3.
+## Run the app
 
 ```sh
 npm install
-npm run build:ios
-# Or: npm run build:android
 npm run start:native
 ```
 
-EAS will guide you through project setup and signing. A cloud build for a physical iPhone requires an Apple Developer membership and device registration. Install the resulting development app, then open its development-server QR link. Android requires an ARCore-compatible device; iPhone requires ARKit support.
+The development build connects to Metro. On a local connection, the phone and Mac need network access to each other and HistoryLens needs Local Network permission. A JavaScript reload updates app code; it cannot update native modules or the installed build number.
 
-For a standalone iPhone prototype, run `npm run build:ios:preview` and install the internal-distribution build. It includes its JavaScript bundle, so it opens without Metro or a development-server tunnel. Both native build profiles use the EAS development environment for provider configuration.
-
-Move slowly across a well-lit textured ground, tabletop, or wall. Tap a highlighted surface to place a 32 × 24 cm flat red tile, then tap it to show a rectangular information card above the anchor. The card faces the camera; the tile follows the detected surface. Use **Place marker again** to reposition. Content selection switches between red object/person tiles and blue structure tiles.
-
-For the camera and screen-marker fallback in Expo Go:
+For an iPhone prototype that opens without a development server:
 
 ```sh
-npx expo start --go
+npm run build:ios:preview
 ```
 
-## Prototype flows
+Install the resulting internal-distribution build on the registered iPhone. The DEV button shows its installed native build number. Signing requires an Apple Developer membership and device registration. Install the new app over the existing one to retain its local records.
 
-- **Explore This Site** opens live camera exploration directly and requests camera permission when needed. Going back opens the site overview; **Start AR Experience** resumes camera exploration.
-- Red object/person blocks and blue structure blocks expand into information cards when tapped.
-- Reconstruct, Compare, and Discover modes; a native slider fades historical blocks over the current scene.
-- Layer switches show/hide structures, people, military equipment, photos, and personal stories.
-- Interactive site map, visit progress, and saved site bookmark. Progress and bookmarks persist on device.
-- Story narration uses native text-to-speech. Exploration uses the rear camera by default, including entry from the site map. If access is denied, the app offers Settings or the demo scene; **Use demo scene** is available while exploring.
-- Indigenous lands panel and source context preserve the design’s fictional-content acknowledgment.
-
-The development build uses native ARKit/ARCore plane anchors. Expo Go and demo mode use screen-positioned markers. Placement is manual: site recognition, realistic 3D models, GPS navigation, and verified historical content are future work. The map is an interactive illustration of the fictional site.
-
-## Verify
+To create a development build with the native camera, AR engine, and location module:
 
 ```sh
-npm run typecheck
-npm test
+npm run build:ios
+# Or: npm run build:android
+```
+
+Expo Go can run camera and screen-marker demonstrations, but it does not contain the native Viro AR engine. Native surface AR requires an ARKit-compatible iPhone or an ARCore-compatible Android device.
+
+## UI preview on a Mac
+
+```sh
+npm run build:ios:simulator
+```
+
+The simulator profile produces a standalone `.app` using `HISTORYLENS_UI_PREVIEW=1`. It omits the hardware AR engine and starts the interactive demo without camera permission or Metro. Install the returned app on a booted simulator:
+
+```sh
+xcrun simctl install booted /path/to/HistoryLens.app
+xcrun simctl launch booted com.historylens.prototype
+```
+
+This workstation has Xcode 16 and the iOS 18.0 simulator runtime. EAS uses its newer build environment to compile the SDK 57 app. Simulator previews are for UI checks; camera tracking and global placement need a physical phone.
+
+## AR and saved locations
+
+**Surface demo:** move slowly across a well-lit, textured ground, tabletop, or wall, tap a highlighted plane, then tap the flat marker to open its information card. The tile follows the detected surface. Use Place marker again to reposition it.
+
+**Harvard test:** open DEV and use the phone's current location to create a local test spot. Its name does not establish that the phone is on campus. A precise, fresh GPS reading within the 50-metre discovery radius unlocks its saved marker. Once unlocked, GPS drift and walking do not hide it within the AR session.
+
+Show marker in front of me creates a preview two metres ahead once tracking is ready. It works without GPS and leaves existing saved coordinates untouched. Save global position requires a fresh GPS reading and persists latitude, longitude, usable WGS84 altitude, rotation, scale, and location accuracy. If height is unavailable, restoration uses camera height. Saved markers include direction/distance guidance, and repositioning restores their layer and nonzero opacity.
+
+The iPhone global scene uses ARKit GravityAndHeading and maps nearby coordinates to east/up/south axes once per session. Native tracking then keeps the point fixed as the visitor walks. GPS and compass error affect placement; this is approximate positioning rather than precise geospatial localization. Future 3D models still need better alignment.
+
+Moving or removing a test spot deliberately clears its local placement. Global mode does not use cloud anchors. Legacy cloud-anchor helpers remain in the surface implementation but are not used by the Harvard flow. All saved progress, bookmarks, and test locations are currently phone-local; shared site records require a backend.
+
+## Code structure
+
+- `App.tsx`: font loading and the safe-area provider.
+- `src/HistoryLens.tsx`: screen navigation and exploration coordination.
+- `src/screens/`: welcome, site overview, site map, and application panels.
+- `src/components/`: historical layers and story-card presentation.
+- `src/ui/`: shared controls, theme colors, and styles.
+- `src/useCameraSession.ts`: camera permission and foreground/session lifecycle.
+- `src/useNarration.ts`: narration state and stale-callback protection.
+- `src/useExplorationProgress.ts`: validated progress hydration and persistence.
+- `src/localStorage.ts`: ordered per-record reads, writes, and deletions across hook remounts.
+- `src/useTestLocation.ts`: location tracking and test-spot transactions.
+- `src/GlobalARScene.tsx`, `src/SurfaceARScene.tsx`: native AR scenes.
+- `src/SurfaceARView.tsx`: lazy native-engine loading and capability checks.
+- `src/content.ts`, `src/assets.ts`, `src/icons.ts`: content and bundled visual resources.
+
+Storage retains the existing record keys. Progress loading merges visits made before hydration finishes, and an explicit bookmark change takes precedence over the restored value. Writes are serialized so a later save or delete cannot be undone by an older asynchronous write. Moving a test spot blocks saves for the old position. Camera permission responses and narration callbacks are ignored after their operation has been superseded. AR mount guards support React's effect replay.
+
+## Checks and formatting
+
+```sh
+npm run check
 npm run bundle
+npm run format
 ```
 
-Tests cover navigation, block expansion, narration, saved progress, mode switching, comparison opacity, layers, map selections, and camera switching. Export verifies the native iOS and Android JavaScript/Hermes bundles; it does not create a signed IPA or APK. Native compilation and physical-device AR verification are still needed because this workstation has no installed iOS simulator runtime.
+`check` runs TypeScript, the test suite, and Prettier. Tests cover navigation, narration, camera ownership, location permissions, marker visibility, saved placement, storage ordering, hydration races, and narrow/large-text layouts. `bundle` exports the native iOS and Android JavaScript/Hermes bundles; it does not produce a signed IPA or APK.
 
-Main implementation: `App.tsx`. Fictional site content and stop definitions: `src/content.ts`. Figma icons are preserved as SVG XML in `src/icons.ts`; image assets are bundled locally under `assets/`.
+Native builds have compiled on EAS. The simulator has rendered the demo UI. Physical-device AR accuracy and restart restoration still require device testing.
 
-Native tooling on this workstation is currently Xcode 16 without CocoaPods or an iOS simulator runtime, so native compilation is unverified. Expo Doctor also reports the direct `@expo/config-plugins` dependency: Viro 2.57.3 imports that package and requires it at the project root for prebuild.
+## Provider configuration
 
-## Harvard current-location test
+Local provider settings belong in ignored `.env` files, with the same configuration in the EAS development environment when building. See `.env.example`. Phone profiles can configure ReactVision through `HISTORYLENS_RV_API_KEY` and `HISTORYLENS_RV_PROJECT_ID`; simulator previews omit that provider. Do not commit credentials.
 
-Tap the corner **DEV** button, open **Developer Settings**, and choose **Use my current location**, allow foreground location access with Precise Location, then explore. The phone saves its actual GPS coordinates as **Harvard test spot** (it does not infer your phone location from the Mac or assert that you are on campus). A 50-metre radius unlocks a single red test tile. Uncertain, stale, or denied location readings keep a new exploration session locked. Once the spot is unlocked, walking away or GPS drift does not hide the placed tile during that AR session; location tracking stops outside the AR screen or when the app backgrounds. Saved coordinates are local to that phone. **Move test spot to my location** in Dev Settings deliberately replaces the test spot; movement alone never changes the saved coordinates. **Remove test spot** removes its local record.
-
-Adding expo-location requires rebuilding the installed development app: run `npm run build:ios`, install its new build, then connect to `npm run start:native`. A JavaScript reload alone cannot add the native location module.
-
-Persistent exact-position anchors are enabled when a provider is configured in the native build and local Metro environment. Create a ReactVision project, set `HISTORYLENS_RV_API_KEY` and `HISTORYLENS_RV_PROJECT_ID` in both the local `.env` used by Metro and the EAS build environment (see `.env.example`), and rebuild. With that provider enabled, select a surface, slowly scan its surroundings, and choose **Save exact AR position**. Hosting sends the visual anchor to ReactVision. The phone stores the returned anchor ID plus the surface-local tap offset for a 24-hour test; returning nearby and scanning the same environment resolves that anchor. Saved identifiers are currently phone-local, so sharing with other visitors also needs a shared site database. Provider failures offer manual repositioning and do not claim persistence. Provider credentials stay outside Git. Cloud hosting/resolution has passed mocked tests; a physical-device restart/restore test is still required.
-
-Restoration waits for native AR tracking to be ready. A visual match unlocks a restored tile even when GPS is uncertain. The AR hint explicitly distinguishes a placed tile, a confirmed cloud save, and a restored anchor. Errors remain visible through tracking updates; **Retry saved position** retries restoration without overwriting the stored anchor. Developer Settings shows the native build number and saved anchor prefix. Moving the test spot deliberately clears its associated exact placement.
-
-A cloud resolve result is checked against newly detected plane geometry before showing the restored tile. The predicted tap must lie within that plane’s boundary, within 12 cm of its surface, and within 15 degrees of its normal. New saves also record surface alignment and available classification. A matching tile is rendered through the measured native plane, keeping it flat and at its original 32 × 24 cm size. If no surface matches within 30 seconds, the app reports an alignment error and offers retry; it does not treat an API success as verified physical placement. Legacy saves without surface metadata are treated as horizontal tiles. The AR navigator lives inside an absolute-positioned React Native wrapper because Viro 2.57.3 ignores its supplied position style.
-
-Build 6 makes the Harvard test spot a floating marker saved in approximate global coordinates. In DEV, use your current location, enter AR, aim the camera where you want the marker (two metres ahead), and tap **Save global position**. The saved placement includes latitude, longitude, WGS84 altitude when its accuracy is usable, rotation, scale, and measured location accuracy. On iPhone, ARKit GravityAndHeading supplies east/up/south axes; the current GPS fix and camera position locate the saved global point in the new session. Placement is frozen within a session to avoid GPS jitter, while AR tracking handles walking. Repositioning changes the preview only until saved. Saving replaces the test spot’s legacy cloud-anchor reference; it does not delete the remote anchor. Global mode uses no cloud localization or plane detection. If altitude is unavailable, reopening uses camera height, stated in DEV. GPS/compass error still affects placement; this is not precise geospatial/VPS localization. The global mode currently targets the signed iPhone build; existing surface demos remain available. The stored transform can support future models without claiming their precise alignment is solved.
-
-Build 7 cleans up the mobile layout. The AR header, camera interaction area, and controls now share a measured flex layout instead of overlapping absolute positions. Header and controls scroll within screen-height budgets while leaving room for the camera. DEV lives in the header; long buttons and text grow naturally, detail actions stack on narrow screens or with larger text, and demo markers use a wrapping grid in the interaction area. Layers scroll within that area rather than covering the header. The map legend sits outside the pins, welcome media adapts to text size, and modal bounds account for safe areas. Layout tests cover short/tall viewports and navigation at 320×568 with 2× text. No simulator runtime is installed locally, so native pixel-level verification still needs the phone.
-
-For native UI testing on a Mac, run `npm run build:ios:simulator`. The `simulator` EAS profile creates a standalone iOS Simulator app using `HISTORYLENS_UI_PREVIEW=1`. This profile omits the hardware AR engine and starts the interactive demo scene without requesting camera access or requiring Metro. Phone profiles keep camera/AR enabled. Install the returned `.app` on a booted iPhone simulator with `xcrun simctl install booted /path/to/HistoryLens.app`, then launch `com.historylens.prototype`. Use Simulator’s device and text-size settings to check UI layouts. Actual camera AR and GPS placement still require the phone.
-
-Build 8 lets the floating marker preview appear as soon as camera tracking is ready, without waiting for GPS. **Show marker in front of me** previews a red marker two metres ahead and preserves the saved global position until **Save global position** succeeds with a fresh GPS fix. Explicit previews remain visible through GPS uncertainty and save errors. Restored markers include camera-relative direction and distance guidance to help find a point behind, above, or beside you. Proximity checks use the saved marker coordinates when present. Previewing changes neither the stored coordinates nor the remote anchor.
-
-Build 9 corrects Harvard marker visibility after selecting another demo story. Show marker in front of me restores its layer and a nonzero comparison opacity; the camera hint explains when layer controls hide a marker. The DEV button includes the installed native build number.
+The dependency audit still reports upstream advisories in the Expo/Viro and development-tool dependency trees. The compatible `http-cache-semantics` update has been applied. Do not use `npm audit fix --force` to switch SDK or Jest major versions without checking Expo/Viro compatibility.

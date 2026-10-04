@@ -1,16 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { ViroARSceneNavigator, ViroARScene, ViroNode, ViroBox, ViroQuad, ViroText, ViroMaterials, ViroTrackingStateConstants } from '@reactvision/react-viro';
+import {
+  ViroARSceneNavigator,
+  ViroARScene,
+  ViroNode,
+  ViroBox,
+  ViroQuad,
+  ViroText,
+  ViroMaterials,
+  ViroTrackingStateConstants,
+} from '@reactvision/react-viro';
 import type { ViroCameraTransform } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import type { SurfaceARProps } from './SurfaceARView';
-import { globalToWorld, markerDirection, usableFix, Vector3, worldToGlobal } from './globalPlacement';
+import {
+  globalToWorld,
+  markerDirection,
+  usableFix,
+  Vector3,
+  worldToGlobal,
+} from './globalPlacement';
 import { harvardTestStop } from './content';
 
-ViroMaterials.createMaterials({ GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' }, GlobalMarkerCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' } });
+ViroMaterials.createMaterials({
+  GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' },
+  GlobalMarkerCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
+});
 type Navigator = { viroAppProps: SurfaceARProps };
-export function GlobalPlacementScene({ sceneNavigator }: { sceneNavigator: Navigator } = {} as { sceneNavigator: Navigator }) {
+export function GlobalPlacementScene(
+  { sceneNavigator }: { sceneNavigator: Navigator } = {} as { sceneNavigator: Navigator },
+) {
   const app = sceneNavigator.viroAppProps;
-  const latest = useRef(app); latest.current = app;
+  const latest = useRef(app);
+  latest.current = app;
   const camera = useRef<ViroCameraTransform | null>(null);
   const ready = useRef(false);
   const lastGuideTime = useRef(0);
@@ -21,56 +42,169 @@ export function GlobalPlacementScene({ sceneNavigator }: { sceneNavigator: Navig
   const mounted = useRef(true);
   const phase = useRef<'globalPlaced' | 'globalRestored' | 'globalSaved'>('globalPlaced');
   const [point, setPoint] = useState<Vector3 | null>(null);
-  useEffect(() => () => { mounted.current = false; generation.current++; latest.current.onMarkerGuide?.(null); }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      generation.current++;
+      latest.current.onMarkerGuide?.(null);
+    };
+  }, []);
   function place() {
     const props = latest.current;
-    if (Platform.OS !== 'ios') { props.onPhaseChange('unsupported'); props.onAnchorError?.('Global compass alignment currently requires the iPhone build.'); return; }
+    if (Platform.OS !== 'ios') {
+      props.onPhaseChange('unsupported');
+      props.onAnchorError?.('Global compass alignment currently requires the iPhone build.');
+      return;
+    }
     if (position.current || !ready.current || !camera.current) return;
     const saved = props.revision === 0 ? props.testSpot?.placement : null;
     if (saved && !usableFix(props.locationFix)) return;
-    const next: Vector3 = saved ? globalToWorld(saved, props.locationFix!, camera.current.position) : camera.current.position.map((v, i) => v + camera.current!.forward[i] * 2) as Vector3;
-    position.current = next; setPoint(next);
-    phase.current = saved ? 'globalRestored' : 'globalPlaced'; props.onPhaseChange(phase.current);
+    const next: Vector3 = saved
+      ? globalToWorld(saved, props.locationFix!, camera.current.position)
+      : (camera.current.position.map((v, i) => v + camera.current!.forward[i] * 2) as Vector3);
+    position.current = next;
+    setPoint(next);
+    phase.current = saved ? 'globalRestored' : 'globalPlaced';
+    props.onPhaseChange(phase.current);
   }
   useEffect(() => {
-    generation.current++; pending.current = false; failed.current = false; position.current = null; setPoint(null);
-    app.onMarkerGuide?.(null); app.onPhaseChange('globalWaiting'); place();
+    generation.current++;
+    pending.current = false;
+    failed.current = false;
+    position.current = null;
+    setPoint(null);
+    app.onMarkerGuide?.(null);
+    app.onPhaseChange('globalWaiting');
+    place();
   }, [app.testSpot?.savedAt, app.revision, app.restoreRequest]);
-  useEffect(() => { place(); }, [app.locationFix]);
   useEffect(() => {
-    if (!app.saveRequest || !position.current || !camera.current || !app.testSpot || !app.onPlacementSaved || pending.current) return;
-    const op = ++generation.current; const time = app.testSpot.savedAt;
-    pending.current = true; failed.current = false;
+    place();
+  }, [app.locationFix]);
+  useEffect(() => {
+    if (
+      !app.saveRequest ||
+      !position.current ||
+      !camera.current ||
+      !app.testSpot ||
+      !app.onPlacementSaved ||
+      pending.current
+    )
+      return;
+    const op = ++generation.current;
+    const time = app.testSpot.savedAt;
+    pending.current = true;
+    failed.current = false;
     void (async () => {
       try {
-        if (!usableFix(app.locationFix)) throw new Error('Wait for a fresh GPS reading before saving.');
+        if (!usableFix(app.locationFix))
+          throw new Error('Wait for a fresh GPS reading before saving.');
         const saved = worldToGlobal(position.current!, app.locationFix, camera.current!.position);
         await app.onPlacementSaved!(saved, time);
-        if (mounted.current && op === generation.current) { phase.current = 'globalSaved'; latest.current.onPhaseChange('globalSaved'); }
+        if (mounted.current && op === generation.current) {
+          phase.current = 'globalSaved';
+          latest.current.onPhaseChange('globalSaved');
+        }
       } catch (cause) {
-        if (mounted.current && op === generation.current) { failed.current = true; latest.current.onPhaseChange('anchorError'); latest.current.onAnchorError?.(cause instanceof Error ? cause.message : 'Could not save global position. Try again.'); }
-      } finally { if (op === generation.current) pending.current = false; }
+        if (mounted.current && op === generation.current) {
+          failed.current = true;
+          latest.current.onPhaseChange('anchorError');
+          latest.current.onAnchorError?.(
+            cause instanceof Error ? cause.message : 'Could not save global position. Try again.',
+          );
+        }
+      } finally {
+        if (op === generation.current) pending.current = false;
+      }
     })();
   }, [app.saveRequest]);
   const savedTransform = app.revision === 0 ? app.testSpot?.placement : null;
-  return <ViroARScene onTrackingUpdated={state => {
-    ready.current = state === ViroTrackingStateConstants.TRACKING_NORMAL;
-    if (failed.current) return;
-    if (!ready.current) app.onPhaseChange('limited');
-    else { place(); if (position.current && !pending.current) app.onPhaseChange(phase.current); }
-  }} onCameraTransformUpdate={transform => { camera.current = transform; place();
-    if (position.current && Date.now() - lastGuideTime.current >= 500) { lastGuideTime.current = Date.now(); latest.current.onMarkerGuide?.(markerDirection(position.current, transform)); } }}>
-    {point && <ViroNode position={point} rotation={savedTransform?.rotation || [0, 0, 0]} scale={savedTransform?.scale || [1, 1, 1]} visible={app.visible} opacity={app.opacity}>
-      <ViroBox width={0.48} height={0.36} length={0.12} materials={['GlobalMarkerRed']} onClick={() => app.selected ? app.onDismiss() : app.onSelect('gun')} />
-      <ViroText text="+" width={0.15} height={0.15} position={[0, 0, 0.045]} transformBehaviors={['billboard']} style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }} ignoreEventHandling />
-      {app.selected && <ViroNode position={[0, 0.45, 0]} transformBehaviors={['billboard']}>
-        <ViroQuad width={0.64} height={0.4} materials={['GlobalMarkerCard']} />
-        <ViroText text={harvardTestStop.title} width={0.54} height={0.07} position={[0, 0.12, 0.006]} style={{ color: '#172521', fontSize: 19, textAlign: 'left' }} ignoreEventHandling />
-        <ViroText text={harvardTestStop.description} width={0.54} height={0.22} position={[0, -0.03, 0.006]} style={{ color: '#52605A', fontSize: 12, textAlign: 'left' }} ignoreEventHandling />
-      </ViroNode>}
-    </ViroNode>}
-  </ViroARScene>;
+  return (
+    <ViroARScene
+      onTrackingUpdated={(state) => {
+        ready.current = state === ViroTrackingStateConstants.TRACKING_NORMAL;
+        if (failed.current) return;
+        if (!ready.current) app.onPhaseChange('limited');
+        else {
+          place();
+          if (position.current && !pending.current) app.onPhaseChange(phase.current);
+        }
+      }}
+      onCameraTransformUpdate={(transform) => {
+        camera.current = transform;
+        place();
+        if (position.current && Date.now() - lastGuideTime.current >= 500) {
+          lastGuideTime.current = Date.now();
+          latest.current.onMarkerGuide?.(markerDirection(position.current, transform));
+        }
+      }}
+    >
+      {point && (
+        <ViroNode
+          position={point}
+          rotation={savedTransform?.rotation || [0, 0, 0]}
+          scale={savedTransform?.scale || [1, 1, 1]}
+          visible={app.visible}
+          opacity={app.opacity}
+        >
+          <ViroBox
+            width={0.48}
+            height={0.36}
+            length={0.12}
+            materials={['GlobalMarkerRed']}
+            onClick={() => (app.selected ? app.onDismiss() : app.onSelect('gun'))}
+          />
+          <ViroText
+            text="+"
+            width={0.15}
+            height={0.15}
+            position={[0, 0, 0.045]}
+            transformBehaviors={['billboard']}
+            style={{
+              color: '#FFFFFF',
+              fontSize: 30,
+              textAlign: 'center',
+              textAlignVertical: 'center',
+            }}
+            ignoreEventHandling
+          />
+          {app.selected && (
+            <ViroNode position={[0, 0.45, 0]} transformBehaviors={['billboard']}>
+              <ViroQuad width={0.64} height={0.4} materials={['GlobalMarkerCard']} />
+              <ViroText
+                text={harvardTestStop.title}
+                width={0.54}
+                height={0.07}
+                position={[0, 0.12, 0.006]}
+                style={{ color: '#172521', fontSize: 19, textAlign: 'left' }}
+                ignoreEventHandling
+              />
+              <ViroText
+                text={harvardTestStop.description}
+                width={0.54}
+                height={0.22}
+                position={[0, -0.03, 0.006]}
+                style={{ color: '#52605A', fontSize: 12, textAlign: 'left' }}
+                ignoreEventHandling
+              />
+            </ViroNode>
+          )}
+        </ViroNode>
+      )}
+    </ViroARScene>
+  );
 }
 export default function NativeGlobalAR(props: SurfaceARProps) {
-  return <View style={StyleSheet.absoluteFill}><ViroARSceneNavigator style={{ flex: 1 }} initialScene={{ scene: GlobalPlacementScene }} viroAppProps={props} worldAlignment="GravityAndHeading" provider="none" autofocus /></View>;
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <ViroARSceneNavigator
+        style={{ flex: 1 }}
+        initialScene={{ scene: GlobalPlacementScene }}
+        viroAppProps={props}
+        worldAlignment="GravityAndHeading"
+        provider="none"
+        autofocus
+      />
+    </View>
+  );
 }

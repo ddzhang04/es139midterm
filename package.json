@@ -14,7 +14,10 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
     "bundle": "expo export --platform ios --platform android",
-    "build:ios:simulator": "npx eas-cli build --platform ios --profile simulator"
+    "build:ios:simulator": "npx eas-cli build --platform ios --profile simulator",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm test && npm run format:check"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -43,6 +46,7 @@
     "@types/react": "~19.2.2",
     "jest": "^29.7.0",
     "jest-expo": "~57.0.5",
+    "prettier": "^3.9.9",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   }

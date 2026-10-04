@@ -1,183 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Animated, BackHandler, Image, ImageBackground, Linking, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Slider from '@react-native-community/slider';
-import ResponsiveAROverlay from './src/ResponsiveAROverlay';
-import { SvgXml } from 'react-native-svg';
+import React from 'react';
+import { Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { icons } from './src/icons';
-import { LayerId, StopId, harvardTestStop, layers, stops } from './src/content';
-import useTestLocation from './src/useTestLocation';
-import SurfaceARView, { supportsSurfaceAR, surfaceInstructions, SurfacePhase } from './src/SurfaceARView';
-
-const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
-const C = { cream: '#F4F1E9', ink: '#172521', green: '#214E45', muted: '#52605A', amber: '#D59A3A', sand: '#F2E1BC', line: '#D5D2C8', glass: 'rgba(20,34,30,0.87)' };
-const pictures = { welcome: require('./assets/welcome-d8381.png'), site: require('./assets/site-8349f.png'), discovery: require('./assets/extra-793de.png'), scene: require('./assets/ar-f55c8.png'), map: require('./assets/extra-62404.png') };
-type Screen = 'welcome' | 'site' | 'map' | 'ar';
-type Mode = 'scan' | 'reconstruct' | 'compare' | 'discover';
-type Panel = 'help' | 'land' | 'sources' | 'dev' | null;
-type IconName = keyof typeof icons;
-
-function Icon({ name }: { name: IconName }) { return <SvgXml xml={icons[name]} />; }
-function Button({ title, icon, onPress, secondary = false, compact = false, grow = false, dark = false }: { title: string; icon?: IconName; onPress: () => void; secondary?: boolean; compact?: boolean; grow?: boolean; dark?: boolean }) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.button, secondary && s.secondary, secondary && dark && { backgroundColor: C.glass, borderColor: C.cream }, compact && s.compact, grow && { flex: 1 }, pressed && s.pressed]}>{icon && <Icon name={icon} />}<Text style={[s.buttonText, secondary && { color: dark ? C.cream : C.green }, compact && { fontSize: 12 }]}>{title}</Text></Pressable>;
-}
-function RoundButton({ icon, label, onPress, dark = false, selected = false }: { icon: IconName; label: string; onPress: () => void; dark?: boolean; selected?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [s.round, dark && s.darkRound, selected && { backgroundColor: C.sand }, pressed && s.pressed]}><Icon name={icon} /></Pressable>;
-}
-function Header({ title, back, action, developer, dark = false }: { title: string; back: () => void; action?: React.ReactNode; developer?: React.ReactNode; dark?: boolean }) {
-  return <View style={s.header}><RoundButton icon={dark ? 'backLight' : 'back'} label="Go back" onPress={back} dark={dark} /><Text accessibilityRole="header" style={[s.headerTitle, dark && { color: 'white' }]}>{title}</Text><View style={s.headerActions}>{action}{developer}</View></View>;
-}
-function Tag({ children, amber = false }: { children: React.ReactNode; amber?: boolean }) { return <View style={[s.tag, amber && { backgroundColor: C.amber }]}><Text style={[s.tagText, amber && { color: C.green }]}>{children}</Text></View>; }
-
-function HistoryLens() {
-  const insets = useSafeAreaInsets();
-  const { width, height, fontScale } = useWindowDimensions();
-  const [arSize, setARSize] = useState<{ width: number; height: number } | null>(null);
-  const [screen, setScreen] = useState<Screen>('welcome');
-  const [mapFrom, setMapFrom] = useState<Screen>('welcome');
-  const [mode, setMode] = useState<Mode>('scan');
-  const [selected, setSelected] = useState<StopId | null>(null);
-  const [visited, setVisited] = useState<StopId[]>([]);
-  const [saved, setSaved] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [panel, setPanel] = useState<Panel>(null);
-  const [layerPanel, setLayerPanel] = useState(false);
-  const [enabled, setEnabled] = useState<Record<LayerId, boolean>>({ structures: true, people: true, equipment: true, photos: false, stories: true });
-  const [past, setPast] = useState(58);
-  const [camera, setCamera] = useState(false);
-  const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('scanning');
-  const [placementRevision, setPlacementRevision] = useState(0);
-  const [unlockedSpot, setUnlockedSpot] = useState<number | null>(null);
-  const [anchorSaveRequest, setAnchorSaveRequest] = useState(0);
-  const [anchorRestoreRequest, setAnchorRestoreRequest] = useState(0);
-  const [anchorError, setAnchorError] = useState('');
-  const [markerGuide, setMarkerGuide] = useState<string | null>(null);
-  const [previewSpot, setPreviewSpot] = useState<number | null>(null);
-  const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
-  const geo = useTestLocation(screen === 'ar' && foreground);
-  useEffect(() => { const listener = AppState.addEventListener('change', state => setForeground(state === 'active')); return () => listener.remove(); }, []);
-  const [placementStop, setPlacementStop] = useState<StopId>('gun');
-  const [permission, requestPermission] = useCameraPermissions();
-  const [speaking, setSpeaking] = useState(false);
-  const grow = useRef(new Animated.Value(1)).current;
-  const detail = geo.spot && selected === 'gun' ? harvardTestStop : stops.find(stop => stop.id === selected);
-  // Once a nearby spot unlocks in this exploration session, GPS drift or
-  // walking away must not remove an already placed world-space marker.
-  const locationUnlocked = !geo.spot || geo.allowed || (screen === 'ar' && (unlockedSpot === geo.spot.savedAt || previewSpot === geo.spot.savedAt));
-  useEffect(() => {
-    if (screen !== 'ar') { setUnlockedSpot(null); setPreviewSpot(null); }
-    else if (geo.spot && geo.nearby?.state === 'nearby') setUnlockedSpot(geo.spot.savedAt);
-  }, [screen, geo.spot?.savedAt, geo.nearby?.state, surfacePhase]);
-  const nativeAR = camera && !!permission?.granted && supportsSurfaceAR && foreground;
-  const placedStop = geo.spot ? harvardTestStop : stops.find(stop => stop.id === placementStop)!;
-  const markerLayerVisible = enabled[placedStop.layer] && (placedStop.id !== 'keeper' || enabled.stories);
-  const markerOpacity = mode === 'compare' ? past / 100 : 1;
-  function showMarker() {
-    dismissStory();
-    setEnabled(current => ({ ...current, [placedStop.layer]: true, ...(placedStop.id === 'keeper' ? { stories: true } : {}) }));
-    if (geo.spot) setPlacementStop('gun');
-    if (mode === 'compare' && past === 0) setPast(100);
-    setPlacementRevision(value => value + 1);
-  }
-  function dismissStory() { setSelected(null); Speech.stop(); setSpeaking(false); }
-  const arHeight = arSize?.height || height - insets.top - insets.bottom;
-  const stackActions = width < 360 || fontScale >= 1.4;
-  const markerWidth = Math.min(144, (width - 48) / (stackActions ? 1 : 2));
-
-  useEffect(() => { AsyncStorage.getItem('historylens-progress').then(value => { if (value) { const data = JSON.parse(value); setVisited(Array.isArray(data.visited) ? data.visited.filter((id: StopId) => stops.some(stop => stop.id === id)) : []); setSaved(!!data.saved); } }).catch(() => {}).finally(() => setLoaded(true)); return () => { Speech.stop(); }; }, []);
-  useEffect(() => { if (loaded) AsyncStorage.setItem('historylens-progress', JSON.stringify({ visited, saved })).catch(() => {}); }, [visited, saved, loaded]);
-  const back = () => { Speech.stop(); setSpeaking(false); if (panel) return setPanel(null); if (layerPanel) return setLayerPanel(false); if (selected) return setSelected(null); if (screen === 'ar') { setCamera(false); setScreen('site'); } else if (screen === 'map') setScreen(mapFrom); else setScreen('welcome'); };
-  useEffect(() => { const subscription = BackHandler.addEventListener('hardwareBackPress', () => { if (screen === 'welcome' && !panel) return false; back(); return true; }); return () => subscription.remove(); }, [screen, selected, panel, layerPanel, mapFrom]);
-  useEffect(() => { if (selected) { grow.setValue(1); Animated.spring(grow, { toValue: 1.04, useNativeDriver: true, friction: 5 }).start(); } }, [selected]);
-  function openStop(id: StopId) { Haptics.selectionAsync().catch(() => {}); Speech.stop(); setSpeaking(false); setLayerPanel(false); setSelected(id); setVisited(current => current.includes(id) ? current : [...current, id]); }
-  function openMap() { setMapFrom(screen); setSelected(null); Speech.stop(); setSpeaking(false); setScreen('map'); }
-  function changeMode(next: Mode) { Speech.stop(); setSpeaking(false); setSelected(null); setLayerPanel(false); setMode(next); Haptics.selectionAsync().catch(() => {}); }
-  async function enableCamera() {
-    if (uiPreview) { setCamera(false); return; }
-    try {
-      const result = permission?.granted || permission?.canAskAgain === false ? permission : await requestPermission();
-      if (result.granted) { setPlacementRevision(0); setSurfacePhase('scanning'); setCamera(true); }
-      else {
-        setCamera(false);
-        Alert.alert('Camera access', 'Allow camera access to explore the site through your phone. You can enable it in Settings or continue with the demo scene.', [{ text: 'Use demo scene', style: 'cancel' }, { text: 'Open Settings', onPress: () => Linking.openSettings() }]);
-      }
-    } catch {
-      setCamera(false);
-      Alert.alert('Camera unavailable', 'The camera could not be opened. You can continue exploring the demo scene.');
-    }
-  }
-  function toggleCamera() {
-    if (uiPreview) { setPanel('help'); return; }
-    if (camera) setCamera(false);
-    else void enableCamera();
-  }
-  function listen() { if (!detail) return; if (speaking) { Speech.stop(); setSpeaking(false); } else { setSpeaking(true); Speech.speak(detail.story, { rate: 0.9, onDone: () => setSpeaking(false), onStopped: () => setSpeaking(false), onError: () => setSpeaking(false) }); } }
-  const enterAR = () => { setPlacementRevision(0); setSelected(null); setMode('scan'); setScreen('ar'); void enableCamera(); };
-
-  const devControl = <Pressable accessibilityRole="button" accessibilityLabel="Open developer settings" onPress={() => setPanel('dev')} style={s.devButton}><Text style={s.devButtonText}>{`DEV${Constants.nativeBuildVersion ? ` ${Constants.nativeBuildVersion}` : ''}`}</Text></Pressable>;
-  const locationControls = <View style={{ backgroundColor: C.cream, padding: 12, borderRadius: 14, gap: 7 }}><Text style={s.eyebrow}>HARVARD · LOCATION TEST</Text><Text accessibilityLiveRegion="polite" style={s.smallBody}>{geo.busy ? 'Getting your phone’s location…' : geo.error || (geo.spot ? geo.nearby?.state === 'nearby' ? 'You’re near your saved test spot. Open AR to place your floating marker.' : geo.nearby?.state === 'far' ? `${Math.round(geo.nearby.distance)} m away · return within 50 m to unlock your tile.` : 'Checking your location. Precise GPS is needed to unlock the tile.' : 'Save where you’re standing as the Harvard test spot.')}</Text><Button compact title={geo.busy ? 'Getting location…' : geo.spot ? 'Move test spot to my location' : 'Use my current location'} onPress={() => { if (!geo.busy) { dismissStory(); setPlacementStop('gun'); void geo.useCurrentLocation().then(() => setPlacementRevision(0)); } }} />{geo.spot && <Pressable accessibilityRole="button" onPress={() => { dismissStory(); void geo.clear(); }}><Text style={s.textLink}>Remove test spot</Text></Pressable>}{geo.spot && <Text style={s.note}>Moving this test spot clears its saved global placement.</Text>}{geo.spot && <Text style={s.note}>{geo.spot.placement ? 'Global marker position saved on this phone.' : 'GPS spot saved. Open AR, place a floating marker, then save its global position.'}</Text>}</View>;
-
-  return <View style={[s.app, { paddingTop: screen === 'welcome' ? 0 : insets.top, paddingBottom: insets.bottom, backgroundColor: screen === 'ar' ? '#09110E' : C.cream }]}>
-    <StatusBar barStyle={screen === 'ar' || screen === 'welcome' ? 'light-content' : 'dark-content'} />
-    {screen === 'welcome' && <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-      <ImageBackground source={pictures.welcome} style={[s.welcomeImage, { height: Math.max(360, height * 0.485, insets.top + 170 * fontScale) }]}>
-        <LinearGradient colors={['rgba(16,34,28,0.15)', 'rgba(16,34,28,0.1)', 'rgba(16,34,28,0.8)']} locations={[0, .62, 1]} style={StyleSheet.absoluteFill} />
-        <View style={[s.brand, { marginTop: insets.top + 24 }]}><View style={s.brandMark}><Icon name="eye" /></View><Text style={s.brandName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}><Text style={{ color: '#163A33' }}>Hi</Text>storyLens</Text>{devControl}</View>
-        <View style={s.siteLabel}><Tag>BATTERY POINT · EST. 1848</Tag><Text style={s.location}>Fort Harbor National Historic Site</Text></View>
-      </ImageBackground>
-      <View style={[s.welcomeContent, { minHeight: height * .515 - insets.bottom }]}>
-        <View><Text accessibilityRole="header" style={s.headline}>Discover the stories hidden around you.</Text><Text style={s.welcomeCopy}>Explore the harbor’s past through local stories, historical records, and augmented reality.</Text><Text style={s.note}>Illustrative historical content for this prototype. Locations, people, and events are fictional.</Text></View>
-        <View style={s.actions}><Button title="Explore This Site" icon="compass" onPress={enterAR} /><Button title="View Site Map" icon="map" secondary onPress={openMap} /></View>
-      </View>
-    </ScrollView>}
-    {screen === 'site' && <><Header developer={devControl} title="Site Overview" back={back} action={<RoundButton icon="bookmark" label={saved ? 'Unsave site' : 'Save site'} selected={saved} onPress={() => { setSaved(!saved); Haptics.selectionAsync().catch(() => {}); }} />} />
-      <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-        <ImageBackground source={pictures.site} style={s.siteImage}><View style={s.imageCaption}><Tag>DEFENDING THE HARBOR</Tag><View style={s.tag}><Icon name="images" /><Text style={s.tagText}>1 / 4</Text></View></View></ImageBackground>
-        <View style={[s.siteDetails, { minHeight: Math.max(420, height - insets.top - insets.bottom - 328) }]}>
-          <View><Text style={s.eyebrow}>COASTAL DEFENSE · 1848–1945</Text><Text accessibilityRole="header" style={s.siteTitle}>Battery Point Fort</Text><Text style={s.body}>Built after the War of 1812, this granite fort guarded the harbor’s shipping channel. Soldiers, lighthouse keepers, and dockworkers shaped daily life here for nearly a century.</Text><Pressable accessibilityRole="button" onPress={() => setPanel('land')}><Text style={s.textLink}>View Tribal Land Acknowledgment</Text></Pressable>{saved && <Text accessibilityLiveRegion="polite" style={s.savedNote}>Saved to your sites</Text>}</View>
-          <View style={s.facts}>{([{ icon: 'clock', value: '25 min', label: 'AR walk' }, { icon: 'pin', value: '4 stops', label: '0.6 mile' }, { icon: 'access', value: 'Easy', label: 'Paved route' }] as const).map(f => <View key={f.label} style={s.fact}><Icon name={f.icon} /><Text style={s.factValue}>{f.value}</Text><Text style={s.factLabel}>{f.label}</Text></View>)}</View>
-          <Button title="Start AR Experience" icon="scan" onPress={enterAR} />
-        </View>
-      </ScrollView></>}
-    {screen === 'map' && <><Header developer={devControl} title="Explore the Site" back={back} action={<RoundButton icon="locate" label="Locate next stop" onPress={() => openStop(stops.find(stop => !visited.includes(stop.id))?.id || 'gun')} />} />
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}><View style={s.progressHeader}><View style={s.between}><Text style={s.smallBody}>{visited.length} of 4 stories explored</Text><Text style={s.progressLabel}>{visited.length * 25}% complete</Text></View><View style={s.progressTrack}><View style={[s.progressFill, { width: `${visited.length * 25}%` }]} /></View></View>
-        <View style={s.legend}><Text style={s.legendTitle}>LEGEND</Text><Text style={s.factLabel}>● Explored</Text><Text style={s.factLabel}>○ Not yet explored</Text></View>
-        <View style={[s.mapImage, { height: width * 1.04 }]}><Image source={pictures.map} style={StyleSheet.absoluteFill} resizeMode="cover" />{stops.map((stop, i) => <Pressable key={stop.id} accessibilityRole="button" accessibilityLabel={`Stop ${i + 1}: ${stop.title}${visited.includes(stop.id) ? ', explored' : ''}`} onPress={() => openStop(stop.id)} style={[s.mapPin, { left: `${[69, 54, 20, 74][i]}%`, top: `${[18, 43, 56, 78][i]}%`, backgroundColor: visited.includes(stop.id) ? C.green : 'white' }]}><Text maxFontSizeMultiplier={1.5} style={[s.pinNumber, visited.includes(stop.id) && { color: 'white' }]}>{visited.includes(stop.id) ? '✓' : i + 1}</Text></Pressable>)}</View>
-        <View style={s.mapBottom}><View style={s.nextStop}><View style={s.detailIcon}><Icon name="search" /></View><View style={{ flex: 1 }}><Text style={s.eyebrow}>{detail ? 'SELECTED STOP' : visited.length === 4 ? 'WALK COMPLETE' : 'UP NEXT · 240 FT'}</Text><Text style={s.nextTitle}>{detail?.title || stops.find(stop => !visited.includes(stop.id))?.title || 'Every place has a story'}</Text><Text style={s.factLabel}>{detail?.description || 'Follow the path through the west arch.'}</Text></View></View><Button title={detail ? 'Explore in AR' : 'Guide Me There'} icon="route" onPress={() => { setPlacementStop(detail?.id || stops.find(stop => !visited.includes(stop.id))?.id || 'gun'); setScreen('ar'); setMode(detail?.id === 'keeper' ? 'discover' : 'reconstruct'); void enableCamera(); if (!detail) openStop(stops.find(stop => !visited.includes(stop.id))?.id || 'gun'); }} /></View>
-      </ScrollView></>}
-    {screen === 'ar' && <View style={s.ar} onLayout={event => { const { width, height } = event.nativeEvent.layout; setARSize(previous => previous?.width === width && previous?.height === height ? previous : { width, height }); }}>
-      {nativeAR ? <SurfaceARView onMarkerGuide={setMarkerGuide} locationFix={geo.fix} onPlacementSaved={geo.savePlacement} testSpot={geo.spot} saveRequest={anchorSaveRequest} restoreRequest={anchorRestoreRequest} onAnchorError={setAnchorError} onAnchorSaved={geo.saveAnchor} stopId={geo.spot ? 'gun' : placementStop} selected={selected === (geo.spot ? 'gun' : placementStop)} visible={locationUnlocked && markerLayerVisible} opacity={markerOpacity} revision={placementRevision} onSelect={openStop} onDismiss={dismissStory} onPhaseChange={phase => { if (phase === 'globalPlaced') setPreviewSpot(geo.spot?.savedAt ?? null); if (phase === 'globalRestored') setPreviewSpot(null); setSurfacePhase(phase); if (phase !== 'anchorError') setAnchorError(''); }} /> : camera && permission?.granted && foreground ? <CameraView style={StyleSheet.absoluteFill} facing="back" onMountError={() => { setCamera(false); Alert.alert('Camera unavailable', 'The demo scene is ready to explore.'); }} /> : <Image source={mode === 'scan' ? pictures.discovery : pictures.scene} style={StyleSheet.absoluteFill} resizeMode="cover" />}
-      <LinearGradient pointerEvents="none" colors={['rgba(9,17,14,.6)', 'transparent', 'transparent', 'rgba(9,17,14,.9)']} locations={[0, .24, .65, 1]} style={StyleSheet.absoluteFill} />
-      <ResponsiveAROverlay height={arHeight} top={<><Header developer={devControl} dark title={geo.spot ? 'Harvard AR Test' : selected ? detail?.id === 'keeper' ? 'Battery Point AR' : 'Explore Object' : mode === 'compare' ? 'Compare' : mode === 'discover' ? 'Historical Layers' : 'Battery Point AR'} back={back} action={mode === 'scan' ? <RoundButton icon="info" label="How to explore" dark onPress={() => setPanel('help')} /> : <Pressable accessibilityRole="button" accessibilityLabel="Choose historical layers" style={s.layersButton} onPress={() => setLayerPanel(!layerPanel)}><Icon name="layers" />{!stackActions && <Text style={s.layersLabel}>Layers</Text>}</Pressable>} />
-      <View style={s.arHint}>{nativeAR ? <View style={s.hintCard}><Text accessibilityLiveRegion="polite" style={s.hintText}>{!markerLayerVisible ? 'Marker hidden by Layers. Tap Show marker in front of me to show it.' : markerOpacity === 0 ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.' : surfacePhase === 'anchorError' ? anchorError || surfaceInstructions.anchorError : ['saving', 'resolving', 'aligning', 'saved', 'restored', 'globalWaiting', 'globalPlaced', 'globalSaved', 'globalRestored'].includes(surfacePhase) ? surfaceInstructions[surfacePhase] : geo.spot && !locationUnlocked ? 'Return near your saved spot with a precise location reading to unlock the tile.' : surfaceInstructions[surfacePhase]}{geo.spot && markerGuide ? `\n${markerGuide}` : ''}</Text></View> : mode === 'compare' ? <Tag amber>1864 · HISTORICAL OVERLAY: {Math.round(past)}%</Tag> : <View style={s.hintCard}><Icon name="footsteps" /><Text style={s.hintText}>{selected ? 'Tap another block to keep exploring.' : 'Tap a red or blue block to discover its story.'}</Text></View>}</View>
-      </>} scene={<ScrollView testID="ar-scene-content" style={{ flex: 1 }} contentContainerStyle={[s.sceneContent, layerPanel && { alignContent: 'flex-start' }]} bounces={false} pointerEvents={nativeAR && !layerPanel ? 'none' : 'auto'}>
-      {!nativeAR && !layerPanel && locationUnlocked && stops.filter(stop => geo.spot ? stop.id === 'gun' : mode === 'scan' ? stop.id !== 'keeper' : mode === 'reconstruct' ? stop.id === 'gun' || stop.id === 'quarters' : mode === 'discover' ? enabled[stop.layer] && (stop.id !== 'keeper' || enabled.stories) : enabled[stop.layer]).map(stop => <Animated.View key={stop.id} style={[s.blockAnchor, { width: markerWidth, transform: [{ scale: selected === stop.id ? grow : 1 }], opacity: mode === 'compare' ? past / 100 : 1 }]}><Pressable accessibilityRole="button" accessibilityLabel={`Explore ${geo.spot ? harvardTestStop.title : stop.title}`} accessibilityState={{ expanded: selected === stop.id }} onPress={() => openStop(stop.id)} style={[s.arBlock, { backgroundColor: stop.color }, selected === stop.id && s.selectedBlock]}><Text style={s.blockPlus}>{selected === stop.id ? '−' : '+'}</Text></Pressable><Text style={s.blockLabel}>{geo.spot ? harvardTestStop.title : stop.title}</Text></Animated.View>)}
-      {!nativeAR && !layerPanel && !geo.spot && mode === 'discover' && enabled.photos && <Pressable accessibilityRole="button" accessibilityLabel="Explore archival photograph" onPress={() => { openStop('signal'); setPanel('sources'); }} style={[s.archiveBlock, { width: markerWidth }]}><Icon name="photos" /><Text style={s.blockLabel}>Archival photograph</Text></Pressable>}
-      {layerPanel && <View style={s.layerPanel}><View style={s.between}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Layers</Text><Text style={s.factLabel}>Choose what appears in this place</Text></View><RoundButton icon="close" label="Close layers" onPress={() => setLayerPanel(false)} /></View>{layers.map(layer => <View key={layer.id} style={s.layerRow}><View style={s.layerIcon}><Icon name={layer.icon} /></View><Text style={s.layerText}>{layer.label}</Text><Switch accessibilityLabel={layer.label} value={enabled[layer.id]} onValueChange={value => { setEnabled(current => ({ ...current, [layer.id]: value })); if (detail?.layer === layer.id || (detail?.id === 'keeper' && layer.id === 'stories')) { setSelected(null); Speech.stop(); setSpeaking(false); } }} trackColor={{ false: C.line, true: C.green }} thumbColor="white" /></View>)}</View>}
-      </ScrollView>} footer={<>
-        {nativeAR && geo.spot?.placement && surfacePhase === 'anchorError' && <Button compact title="Retry saved position" onPress={() => { setPlacementRevision(0); setAnchorRestoreRequest(value => value + 1); }} />}
-        {nativeAR && geo.spot && (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && <Button compact title="Save global position" onPress={() => setAnchorSaveRequest(value => value + 1)} />}
-        {nativeAR && !selected && !layerPanel && <View style={{ gap: 10, marginBottom: 12 }}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{(geo.spot ? [harvardTestStop] : stops).map(stop => <Pressable key={stop.id} accessibilityRole="button" accessibilityState={{ selected: placementStop === stop.id }} onPress={() => { dismissStory(); setPlacementStop(stop.id); }} style={[s.tag, { minHeight: 44, backgroundColor: placementStop === stop.id ? stop.color : C.cream }]}><Text style={[s.tagText, { color: placementStop === stop.id ? 'white' : C.green }]}>{stop.title}</Text></Pressable>)}</ScrollView><Button compact title={geo.spot ? 'Show marker in front of me' : 'Place marker again'} dark secondary onPress={showMarker} /></View>}
-        {camera && !supportsSurfaceAR && <Text style={{ color: 'white', textAlign: 'center', fontSize: 12, marginBottom: 8 }}>Surface AR needs the HistoryLens development build. Expo Go shows screen markers.</Text>}
-        {detail && !layerPanel ? <View style={s.detailCard}><View style={s.handle} /><View style={s.between}><View style={{ flex: 1 }}><Text style={s.detailCategory}>{detail.category.toUpperCase()} · {detail.year}</Text><Text accessibilityRole="header" style={s.detailTitle}>{detail.title}</Text></View><RoundButton icon="close" label="Close detail" onPress={() => { setSelected(null); Speech.stop(); setSpeaking(false); }} /></View><Text style={s.detailBody}>{detail.description}</Text><Button compact title={speaking ? 'Stop listening' : 'Listen to Story'} icon="headphones" onPress={listen} /><View style={[s.detailActions, stackActions && { flexDirection: 'column' }]}><Button compact grow={!stackActions} title="View Sources" secondary onPress={() => setPanel('sources')} /><Button compact grow={!stackActions} title="Continue Exploring" secondary onPress={() => { setSelected(null); Speech.stop(); setSpeaking(false); }} /></View></View> : mode === 'compare' ? <View style={s.comparison}><Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text><View style={[s.sliderRow, stackActions && { flexDirection: 'column', borderRadius: 14, paddingVertical: 8 }]}><Text style={s.sliderLabel}>Past · 1864</Text><Slider accessibilityLabel="Historical overlay opacity" accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }} style={stackActions ? { width: '100%', height: 44 } : { flex: 1, height: 44 }} minimumValue={0} maximumValue={100} value={past} onValueChange={setPast} minimumTrackTintColor={C.green} maximumTrackTintColor={C.line} thumbTintColor={C.green} /><Text style={s.sliderLabel}>Present</Text></View></View> : <View style={s.arStatus}><View style={s.liveDot} /><Text style={s.liveText}>{geo.spot ? 'Harvard location test' : nativeAR ? 'Surface AR' : camera ? 'Live camera' : 'Demo scene'} · {visited.length}/4 stories explored</Text></View>}
-        {mode === 'scan' && !selected ? <View style={s.scanControls}><RoundButton icon="mapLight" label="Open site map" dark onPress={openMap} /><Pressable accessibilityRole="button" accessibilityLabel="Scan site and reconstruct" onPress={() => changeMode('reconstruct')} style={s.scanButton}><View style={s.scanInner} /></Pressable><RoundButton icon="volume" label="Audio information" dark onPress={() => setPanel('help')} /></View> : <View style={s.modes}>{([{ id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' }, { id: 'compare', icon: 'compare', title: 'Compare' }, { id: 'discover', icon: 'discover', title: 'Discover' }] as const).map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: mode === item.id }} onPress={() => changeMode(item.id)} style={[s.mode, mode === item.id && s.modeSelected]}><Icon name={item.icon} /><Text style={[s.modeText, mode === item.id && { color: C.green, fontFamily: 'Inter_700Bold' }]}>{item.title}</Text></Pressable>)}</View>}
-        <View style={s.arTools}><Pressable accessibilityRole="button" onPress={toggleCamera}><Text style={s.toolText}>{uiPreview ? 'Simulator · demo scene' : camera ? 'Use demo scene' : 'Use live camera'}</Text></Pressable><Pressable accessibilityRole="button" onPress={openMap}><Text style={s.toolText}>Site map ↗</Text></Pressable></View>
-      </>} />
-    </View>}
-    <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={() => setPanel(null)}><View style={[s.scrim, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}><View accessibilityViewIsModal testID="app-modal" style={[s.modal, { maxHeight: height - insets.top - insets.bottom - 32 }]}><ScrollView showsVerticalScrollIndicator={false}>
-      <View style={s.between}><Text accessibilityRole="header" style={s.modalTitle}>{panel === 'dev' ? 'Developer Settings' : panel === 'land' ? 'Indigenous Lands & Living Communities' : panel === 'sources' ? 'Historical Sources' : 'Discover through your lens'}</Text><RoundButton icon="close" label="Close panel" onPress={() => setPanel(null)} /></View>
-      {panel === 'dev' ? <><Text style={s.modalCopy}>Create a Harvard test stop and save a floating marker at global coordinates.</Text><Text style={s.note}>Native app build: {Constants.nativeBuildVersion || 'unknown'}</Text>{locationControls}{geo.spot && <View style={s.noteBox}><Text style={s.eyebrow}>SAVED LOCATION</Text>{geo.spot.placement && <Text selectable style={s.note}>Marker: {geo.spot.placement.latitude.toFixed(6)}, {geo.spot.placement.longitude.toFixed(6)} · {geo.spot.placement.altitude === null ? 'height unavailable; floats at camera height on reopening' : `${geo.spot.placement.altitude.toFixed(1)} m altitude (WGS84)`} · rotation {geo.spot.placement.rotation.join(', ')} · scale {geo.spot.placement.scale.join(', ')}</Text>}{!!anchorError && <Text style={s.modalCopy}>{anchorError}</Text>}<Text selectable style={s.modalCopy}>{geo.spot.latitude.toFixed(6)}, {geo.spot.longitude.toFixed(6)} · 50 m discovery radius</Text><Text style={s.modalCopy}>Global placement survives app restarts. The marker stays in the AR world as you walk, and returns approximately to its saved coordinates when you reopen. GPS and compass error can shift it.</Text><Text style={s.modalCopy}>{geo.spot.placement ? 'Position, rotation, and scale are saved for future 3D models. This mode does not require matching the surroundings.' : 'Place the floating marker in AR and tap Save global position. Older cloud anchors are no longer used for this test spot.'}</Text></View>}{nativeAR && <Button title="Reposition AR tile" secondary onPress={() => { dismissStory(); setPlacementRevision(value => value + 1); setPanel(null); }} />}</> : panel === 'land' ? <><Text style={s.modalCopy}>A place to learn about the Tribal Nations connected to this site and the histories they choose to share.</Text><View style={s.divider} /><Text style={s.body}>History includes the Indigenous peoples whose relationships with this land continue today.</Text><Text style={s.body}>HistoryLens could offer a place to learn about the Tribal Nations connected to a site, their ongoing stewardship, and the histories they choose to share.</Text><View style={s.noteBox}><Text style={s.eyebrow}>PROTOTYPE PLACEHOLDER</Text><Text style={s.modalCopy}>This location is fictional. A site-specific acknowledgment and related content would be developed with the relevant Tribal Nation or Nations.</Text></View><View style={s.noteBox}><Text style={s.eyebrow}>A FUTURE DIRECTION</Text><Text style={s.modalCopy}>Explore community-approved resources and stories shared by participating Tribal Nations.</Text></View></> : panel === 'sources' ? <><Text style={s.modalCopy}>About {detail?.title || 'Battery Point Fort'}</Text><View style={s.divider} /><Text style={s.body}>{detail?.story || 'Explore the harbor through objects, buildings, and personal stories.'}</Text><View style={s.noteBox}><Text style={s.eyebrow}>ILLUSTRATIVE CONTENT</Text><Text style={s.modalCopy}>The locations, people, and events in this prototype are fictional. A full experience would connect each story to verified archival records, photographs, and community contributions.</Text></View></> : <><Text style={s.body}>1. For your Harvard test spot, wait for GPS and compass alignment. Other demo sites use surface tracking.</Text><Text style={s.body}>2. The Harvard marker floats in front of you. Save its global position, then tap it to open its story.</Text><Text style={s.body}>3. Reconstruct objects, compare past and present, or choose historical layers.</Text><View style={s.noteBox}><Text style={s.modalCopy}>Red tiles mark objects and people. Blue tiles mark structures. The Harvard test marker uses approximate global coordinates. Other demo sites use real surfaces. Use Place marker again to reposition. Expo Go and the demo scene use screen markers.</Text></View></>}
-      <Button title={panel === 'land' ? 'Return to Site Overview' : 'Continue Exploring'} onPress={() => setPanel(null)} />
-    </ScrollView></View></View></Modal>
-  </View>;
-}
+import HistoryLens from './src/HistoryLens';
+import { styles as s } from './src/ui/styles';
+import { colors as C } from './src/ui/theme';
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -186,26 +13,15 @@ export default function App() {
     Inter_600SemiBold: require('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
     Inter_700Bold: require('@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf'),
   });
-  if (!fontsLoaded && !fontError) return <View style={[s.app, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: C.green, fontSize: 24 }}>HistoryLens</Text></View>;
-  return <SafeAreaProvider><HistoryLens /></SafeAreaProvider>;
+  if (!fontsLoaded && !fontError)
+    return (
+      <View style={[s.app, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ color: C.green, fontSize: 24 }}>HistoryLens</Text>
+      </View>
+    );
+  return (
+    <SafeAreaProvider>
+      <HistoryLens />
+    </SafeAreaProvider>
+  );
 }
-
-const s = StyleSheet.create({
-  devButton: { flexShrink: 0, minWidth: 44, minHeight: 44, paddingHorizontal: 10, backgroundColor: C.glass, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  devButtonText: { color: C.cream, fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 1 },
-  app: { flex: 1, backgroundColor: C.cream },
-  button: { backgroundColor: C.green, borderRadius: 14, minHeight: 56, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.green },
-  secondary: { backgroundColor: 'transparent' }, compact: { minHeight: 44, paddingVertical: 10, paddingHorizontal: 12 }, pressed: { opacity: .72, transform: [{ scale: .985 }] }, buttonText: { flexShrink: 1, textAlign: 'center', color: 'white', fontSize: 16, fontFamily: 'Inter_700Bold' },
-  round: { flexShrink: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }, darkRound: { backgroundColor: C.glass },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }, header: { minHeight: 56, paddingVertical: 6, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, headerTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.ink, flex: 1, flexShrink: 1, textAlign: 'center' },
-  welcomeImage: { width: '100%' }, brand: { marginHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 10 }, brandMark: { flexShrink: 0, width: 38, height: 38, borderRadius: 19, backgroundColor: C.amber, alignItems: 'center', justifyContent: 'center' }, brandName: { flex: 1, flexShrink: 1, fontSize: 21, fontFamily: 'Inter_400Regular', color: 'white', letterSpacing: -.4 },
-  siteLabel: { marginTop: 'auto', paddingBottom: 24, marginHorizontal: 24, gap: 9, alignItems: 'flex-start' }, tag: { flexShrink: 1, maxWidth: '100%', flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: 'rgba(23,37,33,.8)', borderRadius: 99, paddingHorizontal: 11, paddingVertical: 6 }, tagText: { flexShrink: 1, fontFamily: 'Inter_400Regular', color: 'white', fontSize: 11, letterSpacing: .7 }, location: { color: 'white', fontFamily: 'Inter_400Regular', fontSize: 13 },
-  welcomeContent: { padding: 24, paddingTop: 28, justifyContent: 'space-between', flex: 1, gap: 44 }, headline: { fontFamily: 'Inter_400Regular', color: C.ink, fontSize: 38, lineHeight: 41, letterSpacing: -1.2 }, welcomeCopy: { color: C.muted, fontFamily: 'Inter_400Regular', fontSize: 16, lineHeight: 24, marginTop: 12 }, note: { color: C.muted, opacity: .8, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 12 }, actions: { gap: 10 },
-  siteImage: { height: 272, justifyContent: 'flex-end', padding: 18 }, imageCaption: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }, siteDetails: { paddingHorizontal: 24, paddingVertical: 22, justifyContent: 'space-between', gap: 30, flex: 1 }, eyebrow: { color: C.amber, fontFamily: 'Inter_400Regular', fontSize: 11, letterSpacing: .9, marginBottom: 8 }, siteTitle: { color: C.ink, fontFamily: 'Inter_400Regular', fontSize: 26, letterSpacing: -.5, marginBottom: 10 }, body: { fontFamily: 'Inter_400Regular', color: C.muted, fontSize: 15, lineHeight: 23, marginBottom: 10 }, textLink: { color: C.green, fontFamily: 'Inter_600SemiBold', fontSize: 14, textDecorationLine: 'underline', paddingVertical: 5 }, savedNote: { fontFamily: 'Inter_500Medium', color: C.green, fontSize: 11, marginTop: 4 }, facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, fact: { backgroundColor: 'white', flexGrow: 1, flexBasis: 90, minWidth: 0, padding: 12, borderRadius: 14, gap: 6 }, factValue: { color: C.ink, fontFamily: 'Inter_700Bold', fontSize: 14 }, factLabel: { color: C.muted, fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
-  between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, progressHeader: { padding: 24, paddingTop: 14, paddingBottom: 16, gap: 10 }, smallBody: { flexShrink: 1, color: C.ink, fontFamily: 'Inter_400Regular', fontSize: 14 }, progressLabel: { flexShrink: 1, textAlign: 'right', color: C.green, fontFamily: 'Inter_700Bold', fontSize: 12 }, progressTrack: { backgroundColor: C.line, height: 8, borderRadius: 4, overflow: 'hidden' }, progressFill: { backgroundColor: C.amber, height: '100%', borderRadius: 4 }, mapImage: { position: 'relative' }, legend: { marginHorizontal: 16, marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: 'white', gap: 6 }, legendTitle: { fontFamily: 'Inter_700Bold', color: C.ink, fontSize: 11, letterSpacing: .5 }, mapPin: { position: 'absolute', width: 44, height: 44, borderRadius: 22, borderWidth: 3, borderColor: C.green, alignItems: 'center', justifyContent: 'center' }, pinNumber: { color: C.green, fontSize: 16, fontFamily: 'Inter_700Bold' }, mapBottom: { flex: 1, padding: 24, gap: 36, justifyContent: 'space-between', minHeight: 240 }, nextStop: { flexDirection: 'row', gap: 12, alignItems: 'center' }, nextTitle: { color: C.ink, fontFamily: 'Inter_500Medium', fontSize: 16, marginBottom: 4 }, detailIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: C.sand, alignItems: 'center', justifyContent: 'center' },
-  ar: { flex: 1, position: 'relative' }, arHint: { paddingHorizontal: 16, paddingTop: 8, alignItems: 'flex-start' }, hintCard: { width: '100%', backgroundColor: C.glass, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }, hintText: { fontFamily: 'Inter_400Regular', color: 'white', fontSize: 12, lineHeight: 17, flex: 1 }, layersButton: { borderRadius: 99, minHeight: 44, paddingHorizontal: 12, backgroundColor: C.glass, flexDirection: 'row', alignItems: 'center', gap: 6 }, layersLabel: { fontFamily: 'Inter_700Bold', color: 'white', fontSize: 11 },
-  sceneContent: { flexGrow: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16, justifyContent: 'center', alignContent: 'center', padding: 16 }, blockAnchor: { alignItems: 'center', paddingVertical: 4 }, arBlock: { width: 66, height: 66, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,.9)', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: .25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 }, selectedBlock: { borderWidth: 4 }, blockPlus: { color: 'white', fontFamily: 'Inter_400Regular', fontSize: 28 }, blockLabel: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 10, backgroundColor: C.glass, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5, marginTop: 8, overflow: 'hidden', textAlign: 'center' }, archiveBlock: { alignItems: 'center', backgroundColor: '#3485E8', padding: 10, borderRadius: 10 },
-  layerPanel: { width: '100%', padding: 16, backgroundColor: 'rgba(255,255,255,.97)', borderRadius: 20, elevation: 12, shadowColor: '#000', shadowOpacity: .18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }, panelTitle: { fontFamily: 'Inter_700Bold', color: C.ink, fontSize: 16 }, layerRow: { minHeight: 46, flexDirection: 'row', gap: 10, alignItems: 'center' }, layerIcon: { width: 30, height: 30, backgroundColor: C.sand, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }, layerText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.ink },
-   detailCard: { backgroundColor: 'rgba(255,255,255,.96)', borderRadius: 20, padding: 16, paddingTop: 8, gap: 9 }, handle: { height: 4, width: 42, backgroundColor: C.line, borderRadius: 2, alignSelf: 'center' }, detailCategory: { color: C.amber, fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: .8, marginBottom: 3 }, detailTitle: { color: C.ink, fontFamily: 'Inter_700Bold', fontSize: 20 }, detailBody: { color: C.muted, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 }, detailActions: { flexDirection: 'row', gap: 8 }, arStatus: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 8, backgroundColor: C.glass, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 7 }, liveDot: { backgroundColor: C.amber, width: 7, height: 7, borderRadius: 4 }, liveText: { flexShrink: 1, fontFamily: 'Inter_400Regular', color: 'white', fontSize: 11 }, modes: { flexDirection: 'row', gap: 4, backgroundColor: 'rgba(23,37,33,.94)', padding: 5, borderRadius: 20, minHeight: 60 }, mode: { flex: 1, minHeight: 50, paddingVertical: 8, paddingHorizontal: 4, justifyContent: 'center', alignItems: 'center', gap: 4, borderRadius: 14 }, modeSelected: { backgroundColor: C.amber }, modeText: { textAlign: 'center', color: 'white', fontFamily: 'Inter_500Medium', fontSize: 10 }, arTools: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', paddingHorizontal: 8 }, toolText: { color: 'white', fontFamily: 'Inter_500Medium', fontSize: 11, paddingVertical: 7 }, scanControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }, scanButton: { width: 72, height: 72, backgroundColor: 'white', borderColor: C.amber, borderWidth: 4, borderRadius: 36, justifyContent: 'center', alignItems: 'center' }, scanInner: { width: 54, height: 54, borderRadius: 27, borderWidth: 2, borderColor: C.green }, comparison: { padding: 14, borderRadius: 20, backgroundColor: C.glass, gap: 10 }, comparisonTitle: { color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 13, textAlign: 'center' }, sliderRow: { flexDirection: 'row', gap: 2, alignItems: 'center', backgroundColor: 'white', paddingHorizontal: 12, borderRadius: 99 }, sliderLabel: { fontFamily: 'Inter_700Bold', color: C.green, fontSize: 10 },
-  scrim: { flex: 1, backgroundColor: 'rgba(23,37,33,.5)', justifyContent: 'center', padding: 16 }, modal: { flexShrink: 1, padding: 20, borderRadius: 20, backgroundColor: 'white' }, modalTitle: { fontFamily: 'Inter_700Bold', color: C.ink, fontSize: 22, letterSpacing: -.5, flex: 1 }, modalCopy: { color: C.muted, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 20, marginTop: 8 }, divider: { height: 1, backgroundColor: C.line, marginVertical: 16 }, noteBox: { padding: 12, backgroundColor: C.cream, borderRadius: 12, marginVertical: 10 },
-});

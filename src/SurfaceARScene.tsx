@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ViroARSceneNavigator, ViroARScene, ViroARPlaneSelector, ViroARPlane, ViroNode, ViroQuad, ViroText, ViroMaterials, ViroTrackingStateConstants } from '@reactvision/react-viro';
+import {
+  ViroARSceneNavigator,
+  ViroARScene,
+  ViroARPlaneSelector,
+  ViroARPlane,
+  ViroNode,
+  ViroQuad,
+  ViroText,
+  ViroMaterials,
+  ViroTrackingStateConstants,
+} from '@reactvision/react-viro';
 import type { ViroAnchor } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import { harvardTestStop, stops } from './content';
 import { matchRestoredSurface } from './restoredSurface';
@@ -17,7 +27,18 @@ ViroMaterials.createMaterials({
   HistoryLensCard: { diffuseColor: '#F4F1E9', lightingModel: 'Constant', cullMode: 'None' },
 });
 
-type SceneProps = { sceneNavigator: { viroAppProps: SurfaceARProps; hostCloudAnchor: (id: string, days: number) => Promise<{ success: boolean; cloudAnchorId?: string; state?: string; error?: string }>; resolveCloudAnchor: (id: string) => Promise<{ success: boolean; anchor?: ViroCloudAnchor; state?: string; error?: string }> } };
+type SceneProps = {
+  sceneNavigator: {
+    viroAppProps: SurfaceARProps;
+    hostCloudAnchor: (
+      id: string,
+      days: number,
+    ) => Promise<{ success: boolean; cloudAnchorId?: string; state?: string; error?: string }>;
+    resolveCloudAnchor: (
+      id: string,
+    ) => Promise<{ success: boolean; anchor?: ViroCloudAnchor; state?: string; error?: string }>;
+  };
+};
 
 export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps) {
   const app = sceneNavigator.viroAppProps;
@@ -29,8 +50,11 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   const candidate = useRef<ViroCloudAnchor | null>(null);
   const aligning = useRef(false);
   const alignmentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [matched, setMatched] = useState<{ anchorId: string; offset: [number, number, number] } | null>(null);
-  const stop = app.testSpot ? harvardTestStop : stops.find(item => item.id === app.stopId)!;
+  const [matched, setMatched] = useState<{
+    anchorId: string;
+    offset: [number, number, number];
+  } | null>(null);
+  const stop = app.testSpot ? harvardTestStop : stops.find((item) => item.id === app.stopId)!;
   const offset = useRef<[number, number, number]>([0, 0, 0]);
   const operation = useRef(0);
   const pending = useRef(false);
@@ -39,12 +63,29 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   const failed = useRef(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [resolved, setResolved] = useState<ViroCloudAnchor | null>(null);
-  const latest = useRef(app); latest.current = app;
+  const latest = useRef(app);
+  latest.current = app;
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; operation.current++; clearTimeout(alignmentTimer.current); }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      operation.current++;
+      clearTimeout(alignmentTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
-    operation.current++; pending.current = false; restored.current = false; savedPlacement.current = false; failed.current = false; aligning.current = false; candidate.current = null; clearTimeout(alignmentTimer.current); setMatched(null); setResolved(null);
+    operation.current++;
+    pending.current = false;
+    restored.current = false;
+    savedPlacement.current = false;
+    failed.current = false;
+    aligning.current = false;
+    candidate.current = null;
+    clearTimeout(alignmentTimer.current);
+    setMatched(null);
+    setResolved(null);
     selector.current?.reset();
     selectedAnchor.current = null;
     app.onPhaseChange(surfaces.current.size > 0 ? 'choose' : 'scanning');
@@ -53,59 +94,139 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   useEffect(() => {
     // React effects can run before the native AR view has a usable session.
     // Start resolving after the first normal tracking event instead.
-    if (!sessionReady || !persistentAnchorsEnabled || !app.testSpot?.anchor || app.revision > 0 || selectedAnchor.current) return;
+    if (
+      !sessionReady ||
+      !persistentAnchorsEnabled ||
+      !app.testSpot?.anchor ||
+      app.revision > 0 ||
+      selectedAnchor.current
+    )
+      return;
     const saved = app.testSpot.anchor;
-    if (saved.expiresAt <= Date.now()) { failed.current = true; app.onPhaseChange('anchorError'); app.onAnchorError?.('The saved anchor has expired. Place and save a new tile.'); return; }
+    if (saved.expiresAt <= Date.now()) {
+      failed.current = true;
+      app.onPhaseChange('anchorError');
+      app.onAnchorError?.('The saved anchor has expired. Place and save a new tile.');
+      return;
+    }
     let active = true;
     const generation = ++operation.current;
     pending.current = true;
     failed.current = false;
     app.onPhaseChange('resolving');
-    sceneNavigator.resolveCloudAnchor(saved.id).then(result => {
-      if (!active || !mounted.current || generation !== operation.current) return;
-      if (!result.success || !result.anchor) throw result;
-      selectedAnchor.current = result.anchor.anchorId; candidate.current = result.anchor;
-      aligning.current = true; setResolved(result.anchor);
-      latest.current.onPhaseChange('aligning');
-      alignmentTimer.current = setTimeout(() => {
-        if (mounted.current && generation === operation.current && aligning.current) {
-          aligning.current = false; failed.current = true; latest.current.onPhaseChange('anchorError');
-          latest.current.onAnchorError?.('The saved position did not match a detected surface. Scan the original table and its surroundings, then retry.');
+    sceneNavigator
+      .resolveCloudAnchor(saved.id)
+      .then((result) => {
+        if (!active || !mounted.current || generation !== operation.current) return;
+        if (!result.success || !result.anchor) throw result;
+        selectedAnchor.current = result.anchor.anchorId;
+        candidate.current = result.anchor;
+        aligning.current = true;
+        setResolved(result.anchor);
+        latest.current.onPhaseChange('aligning');
+        alignmentTimer.current = setTimeout(() => {
+          if (mounted.current && generation === operation.current && aligning.current) {
+            aligning.current = false;
+            failed.current = true;
+            latest.current.onPhaseChange('anchorError');
+            latest.current.onAnchorError?.(
+              'The saved position did not match a detected surface. Scan the original table and its surroundings, then retry.',
+            );
+          }
+        }, 30000);
+        verifySurface();
+      })
+      .catch((cause) => {
+        if (active && mounted.current && generation === operation.current) {
+          failed.current = true;
+          latest.current.onPhaseChange('anchorError');
+          latest.current.onAnchorError?.(cloudAnchorError(cause, 'restore'));
         }
-      }, 30000);
-      verifySurface();
-    }).catch(cause => { if (active && mounted.current && generation === operation.current) { failed.current = true; latest.current.onPhaseChange('anchorError'); latest.current.onAnchorError?.(cloudAnchorError(cause, 'restore')); } })
-      .finally(() => { if (generation === operation.current) pending.current = false; });
-    return () => { active = false; };
-  }, [sessionReady, app.testSpot?.anchor?.id, app.testSpot?.savedAt, app.revision, app.restoreRequest]);
+      })
+      .finally(() => {
+        if (generation === operation.current) pending.current = false;
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    sessionReady,
+    app.testSpot?.anchor?.id,
+    app.testSpot?.savedAt,
+    app.revision,
+    app.restoreRequest,
+  ]);
 
   useEffect(() => {
-    if (!app.saveRequest || !persistentAnchorsEnabled || !app.testSpot || !selectedAnchor.current || !app.onAnchorSaved || pending.current || restored.current) return;
+    if (
+      !app.saveRequest ||
+      !persistentAnchorsEnabled ||
+      !app.testSpot ||
+      !selectedAnchor.current ||
+      !app.onAnchorSaved ||
+      pending.current ||
+      restored.current
+    )
+      return;
     const generation = ++operation.current;
     const spotTime = app.testSpot.savedAt;
     const placementOffset = offset.current;
     pending.current = true;
     failed.current = false;
     app.onPhaseChange('saving');
-    sceneNavigator.hostCloudAnchor(selectedAnchor.current, 1).then(async result => {
-      if (!mounted.current || generation !== operation.current) return;
-      if (!result.success || !result.cloudAnchorId) throw result;
-      await app.onAnchorSaved!({ id: result.cloudAnchorId, expiresAt: Date.now() + 86400000, offset: placementOffset, surfaceAlignment: selectedPlane.current?.alignment === 'Vertical' ? 'Vertical' : 'Horizontal', surfaceClassification: selectedPlane.current?.classification && !['None', 'Unknown'].includes(selectedPlane.current.classification) ? selectedPlane.current.classification : undefined }, spotTime);
-      if (mounted.current && generation === operation.current) { savedPlacement.current = true; latest.current.onPhaseChange('saved'); }
-    }).catch(cause => { if (mounted.current && generation === operation.current) { failed.current = true; latest.current.onPhaseChange('anchorError'); latest.current.onAnchorError?.(cloudAnchorError(cause, 'save')); } })
-      .finally(() => { if (generation === operation.current) pending.current = false; });
+    sceneNavigator
+      .hostCloudAnchor(selectedAnchor.current, 1)
+      .then(async (result) => {
+        if (!mounted.current || generation !== operation.current) return;
+        if (!result.success || !result.cloudAnchorId) throw result;
+        await app.onAnchorSaved!(
+          {
+            id: result.cloudAnchorId,
+            expiresAt: Date.now() + 86400000,
+            offset: placementOffset,
+            surfaceAlignment:
+              selectedPlane.current?.alignment === 'Vertical' ? 'Vertical' : 'Horizontal',
+            surfaceClassification:
+              selectedPlane.current?.classification &&
+              !['None', 'Unknown'].includes(selectedPlane.current.classification)
+                ? selectedPlane.current.classification
+                : undefined,
+          },
+          spotTime,
+        );
+        if (mounted.current && generation === operation.current) {
+          savedPlacement.current = true;
+          latest.current.onPhaseChange('saved');
+        }
+      })
+      .catch((cause) => {
+        if (mounted.current && generation === operation.current) {
+          failed.current = true;
+          latest.current.onPhaseChange('anchorError');
+          latest.current.onAnchorError?.(cloudAnchorError(cause, 'save'));
+        }
+      })
+      .finally(() => {
+        if (generation === operation.current) pending.current = false;
+      });
   }, [app.saveRequest]);
 
   useEffect(() => {
-    if (!matched) planes.current.forEach(anchor => selector.current?.handleAnchorFound(anchor));
+    if (!matched) planes.current.forEach((anchor) => selector.current?.handleAnchorFound(anchor));
   }, [matched]);
 
   function verifySurface() {
     if (!aligning.current || !candidate.current || !latest.current.testSpot?.anchor) return;
-    const match = matchRestoredSurface(candidate.current, latest.current.testSpot.anchor, [...planes.current.values()]);
+    const match = matchRestoredSurface(candidate.current, latest.current.testSpot.anchor, [
+      ...planes.current.values(),
+    ]);
     if (!match) return;
-    clearTimeout(alignmentTimer.current); aligning.current = false; restored.current = true; failed.current = false;
-    setMatched(match); latest.current.onPhaseChange('restored');
+    clearTimeout(alignmentTimer.current);
+    aligning.current = false;
+    restored.current = true;
+    failed.current = false;
+    setMatched(match);
+    latest.current.onPhaseChange('restored');
   }
   function forwardFound(anchor: ViroAnchor) {
     selector.current?.handleAnchorFound(anchor);
@@ -116,71 +237,187 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     selector.current?.handleAnchorUpdated(anchor);
     if (anchor.type === 'plane') planes.current.set(anchor.anchorId, anchor);
     if (selectedPlane.current?.anchorId === anchor.anchorId) selectedPlane.current = anchor;
-    if (aligning.current && selectedAnchor.current === anchor.anchorId) candidate.current = { ...candidate.current!, position: anchor.position, rotation: anchor.rotation };
+    if (aligning.current && selectedAnchor.current === anchor.anchorId)
+      candidate.current = {
+        ...candidate.current!,
+        position: anchor.position,
+        rotation: anchor.rotation,
+      };
     verifySurface();
   }
   function forwardRemoved(anchor?: ViroAnchor | null) {
     if (!anchor) return;
-    selector.current?.handleAnchorRemoved(anchor); surfaces.current.delete(anchor.anchorId); planes.current.delete(anchor.anchorId);
+    selector.current?.handleAnchorRemoved(anchor);
+    surfaces.current.delete(anchor.anchorId);
+    planes.current.delete(anchor.anchorId);
     if (selectedAnchor.current === anchor.anchorId || matched?.anchorId === anchor.anchorId) {
-      selectedAnchor.current = null; restored.current = false; aligning.current = false; candidate.current = null;
-      clearTimeout(alignmentTimer.current); setMatched(null); setResolved(null); operation.current++; pending.current = false;
-      app.onDismiss(); app.onPhaseChange('lost');
+      selectedAnchor.current = null;
+      restored.current = false;
+      aligning.current = false;
+      candidate.current = null;
+      clearTimeout(alignmentTimer.current);
+      setMatched(null);
+      setResolved(null);
+      operation.current++;
+      pending.current = false;
+      app.onDismiss();
+      app.onPhaseChange('lost');
     }
   }
 
-  const tile = <ViroNode visible={app.visible} opacity={app.opacity}>
-        {/* Plane-local XZ is the surface. A quad is perfectly flat; 4 mm
+  const tile = (
+    <ViroNode visible={app.visible} opacity={app.opacity}>
+      {/* Plane-local XZ is the surface. A quad is perfectly flat; 4 mm
             offset prevents flicker where virtual and real surfaces meet. */}
-        <ViroQuad width={0.32} height={0.24} position={[0, 0.004, 0]} rotation={[-90, 0, 0]}
-          materials={[stop.color === '#3485E8' ? 'HistoryLensBlue' : 'HistoryLensRed']}
-          onClick={() => app.selected ? app.onDismiss() : app.onSelect(stop.id)} />
-        <ViroText text="+" width={0.12} height={0.12} position={[0, 0.006, 0]} rotation={[-90, 0, 0]}
-          style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }} ignoreEventHandling />
-        {app.selected && <ViroNode position={[0, 0.42, 0]} transformBehaviors={['billboard']}>
+      <ViroQuad
+        width={0.32}
+        height={0.24}
+        position={[0, 0.004, 0]}
+        rotation={[-90, 0, 0]}
+        materials={[stop.color === '#3485E8' ? 'HistoryLensBlue' : 'HistoryLensRed']}
+        onClick={() => (app.selected ? app.onDismiss() : app.onSelect(stop.id))}
+      />
+      <ViroText
+        text="+"
+        width={0.12}
+        height={0.12}
+        position={[0, 0.006, 0]}
+        rotation={[-90, 0, 0]}
+        style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }}
+        ignoreEventHandling
+      />
+      {app.selected && (
+        <ViroNode position={[0, 0.42, 0]} transformBehaviors={['billboard']}>
           <ViroQuad width={0.64} height={0.38} materials={['HistoryLensCard']} />
-          <ViroText text={`${stop.category.toUpperCase()} · ${stop.year}`} width={0.54} height={0.04} position={[-0.01, 0.13, 0.006]}
-            style={{ color: '#A16C22', fontSize: 10, textAlign: 'left' }} ignoreEventHandling />
-          <ViroText text={stop.title} width={0.54} height={0.07} position={[-0.01, 0.07, 0.006]}
-            style={{ color: '#172521', fontSize: 19, fontWeight: 'bold', textAlign: 'left' }} ignoreEventHandling />
-          <ViroText text={stop.description} width={0.54} height={0.16} position={[-0.01, -0.045, 0.006]}
-            style={{ color: '#52605A', fontSize: 12, textAlign: 'left', textAlignVertical: 'top' }} ignoreEventHandling />
-          <ViroText text="×" width={0.07} height={0.07} position={[0.275, 0.145, 0.008]}
-            style={{ color: '#214E45', fontSize: 20, textAlign: 'center' }} onClick={app.onDismiss} />
-        </ViroNode>}
-      </ViroNode>;
+          <ViroText
+            text={`${stop.category.toUpperCase()} · ${stop.year}`}
+            width={0.54}
+            height={0.04}
+            position={[-0.01, 0.13, 0.006]}
+            style={{ color: '#A16C22', fontSize: 10, textAlign: 'left' }}
+            ignoreEventHandling
+          />
+          <ViroText
+            text={stop.title}
+            width={0.54}
+            height={0.07}
+            position={[-0.01, 0.07, 0.006]}
+            style={{ color: '#172521', fontSize: 19, fontWeight: 'bold', textAlign: 'left' }}
+            ignoreEventHandling
+          />
+          <ViroText
+            text={stop.description}
+            width={0.54}
+            height={0.16}
+            position={[-0.01, -0.045, 0.006]}
+            style={{ color: '#52605A', fontSize: 12, textAlign: 'left', textAlignVertical: 'top' }}
+            ignoreEventHandling
+          />
+          <ViroText
+            text="×"
+            width={0.07}
+            height={0.07}
+            position={[0.275, 0.145, 0.008]}
+            style={{ color: '#214E45', fontSize: 20, textAlign: 'center' }}
+            onClick={app.onDismiss}
+          />
+        </ViroNode>
+      )}
+    </ViroNode>
+  );
 
-  return <ViroARScene
-    anchorDetectionTypes={['PlanesHorizontal', 'PlanesVertical']}
-    onAnchorFound={forwardFound}
-    onAnchorUpdated={forwardUpdated}
-    onAnchorRemoved={forwardRemoved}
-    onTrackingUpdated={state => {
-      if (state === ViroTrackingStateConstants.TRACKING_NORMAL) setSessionReady(true);
-      if (pending.current || aligning.current || failed.current) return;
-      if (state !== ViroTrackingStateConstants.TRACKING_NORMAL) app.onPhaseChange('limited');
-      else app.onPhaseChange(restored.current ? 'restored' : savedPlacement.current ? 'saved' : selectedAnchor.current ? 'placed' : surfaces.current.size > 0 ? 'choose' : 'scanning');
-    }}
-  >
-    {!matched && <ViroNode visible={!resolved}><ViroARPlaneSelector
-      disableClickSelection={pending.current || aligning.current || !!resolved || (!!app.testSpot?.anchor && app.revision === 0)}
-      ref={selector}
-      alignment="Both"
-      minWidth={0.35}
-      minHeight={0.28}
-      material="HistoryLensSurface"
-      useActualShape
-      hideOverlayOnSelection
-      onPlaneDetected={anchor => { surfaces.current.add(anchor.anchorId); if (!selectedAnchor.current && !pending.current && !aligning.current && !failed.current) app.onPhaseChange('choose'); return true; }}
-      onPlaneSelected={(anchor, tap) => { failed.current = false; savedPlacement.current = false; selectedPlane.current = anchor; selectedAnchor.current = anchor.anchorId; offset.current = tap ? surfaceOffset(tap, anchor.position, anchor.rotation) : [0, 0, 0]; app.onPhaseChange('placed'); }}
+  return (
+    <ViroARScene
+      anchorDetectionTypes={['PlanesHorizontal', 'PlanesVertical']}
+      onAnchorFound={forwardFound}
+      onAnchorUpdated={forwardUpdated}
+      onAnchorRemoved={forwardRemoved}
+      onTrackingUpdated={(state) => {
+        if (state === ViroTrackingStateConstants.TRACKING_NORMAL) setSessionReady(true);
+        if (pending.current || aligning.current || failed.current) return;
+        if (state !== ViroTrackingStateConstants.TRACKING_NORMAL) app.onPhaseChange('limited');
+        else
+          app.onPhaseChange(
+            restored.current
+              ? 'restored'
+              : savedPlacement.current
+                ? 'saved'
+                : selectedAnchor.current
+                  ? 'placed'
+                  : surfaces.current.size > 0
+                    ? 'choose'
+                    : 'scanning',
+          );
+      }}
     >
-      {tile}
-    </ViroARPlaneSelector></ViroNode>}
-    {matched && <ViroARPlane anchorId={matched.anchorId} alignment={app.testSpot?.anchor?.surfaceAlignment === 'Vertical' ? 'Vertical' : 'Horizontal'} onAnchorUpdated={forwardUpdated}><ViroNode position={matched.offset}>{tile}</ViroNode></ViroARPlane>}
-  </ViroARScene>;
+      {!matched && (
+        <ViroNode visible={!resolved}>
+          <ViroARPlaneSelector
+            disableClickSelection={
+              pending.current ||
+              aligning.current ||
+              !!resolved ||
+              (!!app.testSpot?.anchor && app.revision === 0)
+            }
+            ref={selector}
+            alignment="Both"
+            minWidth={0.35}
+            minHeight={0.28}
+            material="HistoryLensSurface"
+            useActualShape
+            hideOverlayOnSelection
+            onPlaneDetected={(anchor) => {
+              surfaces.current.add(anchor.anchorId);
+              if (
+                !selectedAnchor.current &&
+                !pending.current &&
+                !aligning.current &&
+                !failed.current
+              )
+                app.onPhaseChange('choose');
+              return true;
+            }}
+            onPlaneSelected={(anchor, tap) => {
+              failed.current = false;
+              savedPlacement.current = false;
+              selectedPlane.current = anchor;
+              selectedAnchor.current = anchor.anchorId;
+              offset.current = tap
+                ? surfaceOffset(tap, anchor.position, anchor.rotation)
+                : [0, 0, 0];
+              app.onPhaseChange('placed');
+            }}
+          >
+            {tile}
+          </ViroARPlaneSelector>
+        </ViroNode>
+      )}
+      {matched && (
+        <ViroARPlane
+          anchorId={matched.anchorId}
+          alignment={
+            app.testSpot?.anchor?.surfaceAlignment === 'Vertical' ? 'Vertical' : 'Horizontal'
+          }
+          onAnchorUpdated={forwardUpdated}
+        >
+          <ViroNode position={matched.offset}>{tile}</ViroNode>
+        </ViroARPlane>
+      )}
+    </ViroARScene>
+  );
 }
 
 export default function NativeSurfaceAR(props: SurfaceARProps) {
-  return <View testID="native-ar-viewport" style={StyleSheet.absoluteFill}><ViroARSceneNavigator style={{ flex: 1 }} initialScene={{ scene: PlacementScene }} viroAppProps={props}
-    worldAlignment="Gravity" provider={persistentAnchorsEnabled ? "reactvision" : "none"} autofocus /></View>;
+  return (
+    <View testID="native-ar-viewport" style={StyleSheet.absoluteFill}>
+      <ViroARSceneNavigator
+        style={{ flex: 1 }}
+        initialScene={{ scene: PlacementScene }}
+        viroAppProps={props}
+        worldAlignment="Gravity"
+        provider={persistentAnchorsEnabled ? 'reactvision' : 'none'}
+        autofocus
+      />
+    </View>
+  );
 }

@@ -20,9 +20,7 @@
     },
     "android": {
       "package": "com.historylens.prototype",
-      "permissions": [
-        "android.permission.CAMERA"
-      ]
+      "permissions": ["android.permission.CAMERA"]
     },
     "plugins": [
       [
@@ -53,9 +51,7 @@
         }
       ]
     ],
-    "assetBundlePatterns": [
-      "assets/**/*"
-    ],
+    "assetBundlePatterns": ["assets/**/*"],
     "extra": {
       "eas": {
         "projectId": "663160f5-e04a-46f3-b2ad-b82fe599ce9e"

@@ -5,29 +5,46 @@ import * as Speech from 'expo-speech';
 import { Alert } from 'react-native';
 import App from '../App';
 
-beforeEach(async () => { await AsyncStorage.clear(); jest.clearAllMocks(); });
-async function start() { render(<App />); await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalled()); }
-async function enterAR() { fireEvent.press(screen.getByText('Explore This Site')); await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy()); }
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+});
+async function start() {
+  render(<App />);
+  await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalled());
+}
+async function enterAR() {
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
+}
 
 test('Explore This Site opens the camera, blocks expand, audio works, and progress persists', async () => {
   await start();
   await enterAR();
   const block = screen.getByLabelText('Explore The 10-inch gun');
   fireEvent.press(block);
-  expect(screen.getByLabelText('Explore The 10-inch gun').props.accessibilityState.expanded).toBe(true);
+  expect(screen.getByLabelText('Explore The 10-inch gun').props.accessibilityState.expanded).toBe(
+    true,
+  );
   expect(screen.getByText(/This cast-iron barrel/)).toBeTruthy();
   fireEvent.press(screen.getByText('Listen to Story'));
   expect(Speech.speak).toHaveBeenCalledWith(expect.stringContaining('harbor'), expect.any(Object));
   fireEvent.press(screen.getByText('Continue Exploring'));
   expect(screen.queryByText('Listen to Story')).toBeNull();
   expect(Speech.stop).toHaveBeenCalled();
-  await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith('historylens-progress', expect.stringContaining('gun')));
+  await waitFor(() =>
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'historylens-progress',
+      expect.stringContaining('gun'),
+    ),
+  );
   fireEvent.press(screen.getByText('Site map ↗'));
   expect(screen.getByText('1 of 4 stories explored')).toBeTruthy();
 });
 
 test('historical modes, comparison slider, and layer switches control visible blocks', async () => {
-  await start(); await enterAR();
+  await start();
+  await enterAR();
   fireEvent.press(screen.getByLabelText('Scan site and reconstruct'));
   fireEvent.press(screen.getByText('Compare'));
   fireEvent(screen.getByLabelText('Historical overlay opacity'), 'valueChange', 25);
@@ -63,7 +80,12 @@ test('site bookmark persists and acknowledgment panel closes', async () => {
   fireEvent.press(screen.getByLabelText('Go back'));
   fireEvent.press(screen.getByLabelText('Save site'));
   expect(screen.getByText('Saved to your sites')).toBeTruthy();
-  await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith('historylens-progress', expect.stringContaining('"saved":true')));
+  await waitFor(() =>
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+      'historylens-progress',
+      expect.stringContaining('"saved":true'),
+    ),
+  );
   fireEvent.press(screen.getByText('View Tribal Land Acknowledgment'));
   expect(screen.getByText('Indigenous Lands & Living Communities')).toBeTruthy();
   fireEvent.press(screen.getByText('Return to Site Overview'));
@@ -71,7 +93,8 @@ test('site bookmark persists and acknowledgment panel closes', async () => {
 });
 
 test('camera can switch to demo and back, and is released when leaving exploration', async () => {
-  await start(); await enterAR();
+  await start();
+  await enterAR();
   expect(screen.getByTestId('native-camera')).toBeTruthy();
   fireEvent.press(screen.getByText('Use demo scene'));
   expect(screen.getByText('Use live camera')).toBeTruthy();
@@ -85,7 +108,10 @@ test('camera can switch to demo and back, and is released when leaving explorati
 });
 
 test('saved exploration progress is restored after reopening the app', async () => {
-  await AsyncStorage.setItem('historylens-progress', JSON.stringify({ visited: ['gun', 'keeper'], saved: true }));
+  await AsyncStorage.setItem(
+    'historylens-progress',
+    JSON.stringify({ visited: ['gun', 'keeper'], saved: true }),
+  );
   await start();
   fireEvent.press(screen.getByText('View Site Map'));
   await waitFor(() => expect(screen.getByText('2 of 4 stories explored')).toBeTruthy());
@@ -99,15 +125,26 @@ test('saved exploration progress is restored after reopening the app', async () 
 
 test('denied camera permission offers Settings and keeps the demo usable', async () => {
   const request = jest.fn().mockResolvedValue({ granted: false });
-  const permissions = jest.spyOn(require('expo-camera'), 'useCameraPermissions').mockReturnValue([{ granted: false, canAskAgain: true }, request, jest.fn()]);
+  const permissions = jest
+    .spyOn(require('expo-camera'), 'useCameraPermissions')
+    .mockReturnValue([{ granted: false, canAskAgain: true }, request, jest.fn()]);
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   try {
     await start();
     fireEvent.press(screen.getByText('Explore This Site'));
-    await waitFor(() => expect(alert).toHaveBeenCalledWith('Camera access', expect.any(String), expect.arrayContaining([expect.objectContaining({ text: 'Open Settings' })])));
+    await waitFor(() =>
+      expect(alert).toHaveBeenCalledWith(
+        'Camera access',
+        expect.any(String),
+        expect.arrayContaining([expect.objectContaining({ text: 'Open Settings' })]),
+      ),
+    );
     expect(request).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('native-camera')).toBeNull();
     fireEvent.press(screen.getByLabelText('Explore The 10-inch gun'));
     expect(screen.getByText(/This cast-iron barrel/)).toBeTruthy();
-  } finally { permissions.mockRestore(); alert.mockRestore(); }
+  } finally {
+    permissions.mockRestore();
+    alert.mockRestore();
+  }
 });
