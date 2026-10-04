@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ViroMaterials, ViroNode, ViroQuad, ViroText } from '@reactvision/react-viro';
 import { stops } from '../content';
+import type { Vector3 } from '../anchorPlacement';
 
 ViroMaterials.createMaterials({
   ARInfoBackground: {
@@ -28,6 +29,7 @@ ViroMaterials.createMaterials({
 // Explicit draw order and flat text prevent the card/background from obscuring
 // glyphs. Bounds constrain each field independently of its font size.
 const flatText = {
+  highAccuracyEvents: false,
   extrusionDepth: 0,
   materials: ['ARInfoText'],
   renderingOrder: 12,
@@ -84,17 +86,19 @@ export default function ARInfoPanel({
   onClose,
   onListen,
   speaking = false,
+  rotation = [0, 0, 0],
 }: {
   detail: (typeof stops)[number];
   onClose: () => void;
   onListen?: () => void;
   speaking?: boolean;
+  rotation?: Vector3;
 }) {
   const [page, setPage] = useState(0);
   const pages = [detail.description, ...storyPages(detail.story)];
   const index = Math.min(page, pages.length - 1);
   return (
-    <ViroNode position={[0, 0, 0]} transformBehaviors={['billboard']}>
+    <ViroNode position={[0, 0, 0]} rotation={rotation} highAccuracyEvents={false}>
       <ViroQuad width={0.84} height={0.8} renderingOrder={10} materials={['ARInfoBackground']} />
       <ViroText
         {...flatText}

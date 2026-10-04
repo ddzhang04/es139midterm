@@ -7,6 +7,8 @@ import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
 import { harvardTestStop } from '../src/content';
 import { storyPages } from '../src/components/ARInfoPanel';
+import { panelFacingRotation } from '../src/arPanelFacing';
+import { surfaceWorldPoint } from '../src/anchorPlacement';
 import type { SurfaceARProps } from '../src/SurfaceARView';
 jest.mock('@reactvision/react-viro', () => {
   const React = require('react');
@@ -221,9 +223,12 @@ test('red box expands a world-space information panel with story pages, audio, a
   expect(text(harvardTestStop.description)).toBeTruthy();
   const panel = view
     .getAllByTestId('node')
-    .find((node) => node.props.transformBehaviors?.includes('billboard'))!;
+    .find((node) => node.props.position?.every((v: number) => v === 0) && node.props.rotation)!;
   expect(panel.props.position).toEqual([0, 0, 0]);
-  expect(panel.props.transformBehaviors).toEqual(['billboard']);
+  expect(panel.props.transformBehaviors).toBeUndefined();
+  expect(view.getAllByTestId('text').every((text) => text.props.highAccuracyEvents === false)).toBe(
+    true,
+  );
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
     fireEvent(buttonAt(0.25), 'click');
@@ -244,6 +249,20 @@ test('red box expands a world-space information panel with story pages, audio, a
   fireEvent(view.getByTestId('box'), 'click');
   expect(text(harvardTestStop.description)).toBeTruthy();
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
+});
+
+test('the panel faces the camera without native billboarding, including rotated parents', () => {
+  for (const parent of [
+    [0, 0, 0],
+    [0, 40, 0],
+    [-90, 20, 0],
+  ] as [number, number, number][]) {
+    const rotation = panelFacingRotation([3, 2, 4], [0, 0, 0], parent);
+    const localNormal = surfaceWorldPoint([0, 0, 1], [0, 0, 0], rotation);
+    const worldNormal = surfaceWorldPoint(localNormal, [0, 0, 0], parent);
+    [3, 2, 4].forEach((v, i) => expect(worldNormal[i]).toBeCloseTo(v / Math.sqrt(29)));
+  }
+  expect(panelFacingRotation([0, 0, 0], [0, 0, 0], [0, 0, 0])).toEqual([0, 0, 0]);
 });
 
 test('the plus sign opens the panel and app dismissal restores the box without moving it', () => {

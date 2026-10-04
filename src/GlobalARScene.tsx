@@ -1,4 +1,5 @@
 import useARSelection from './useARSelection';
+import { panelFacingRotation, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -38,6 +39,7 @@ export function GlobalPlacementScene(
 ) {
   const app = sceneNavigator.viroAppProps;
   const selection = useARSelection(app, 'gun');
+  const facing = useARCameraPosition();
   const latest = useRef(app);
   latest.current = app;
   const camera = useRef<ViroCameraTransform | null>(null);
@@ -140,6 +142,7 @@ export function GlobalPlacementScene(
       }}
       onCameraTransformUpdate={(transform) => {
         camera.current = transform;
+        facing.update(transform.position);
         place();
         if (position.current && Date.now() - lastGuideTime.current >= 500) {
           lastGuideTime.current = Date.now();
@@ -174,13 +177,14 @@ export function GlobalPlacementScene(
             visible={!selection.selected}
             onClick={selection.open}
             onClickState={selection.press}
+            highAccuracyEvents={false}
           />
           <ViroText
             text="+"
             width={0.15}
             height={0.15}
             position={[0, 0, 0.065]}
-            transformBehaviors={['billboard']}
+            highAccuracyEvents={false}
             style={{
               color: '#FFFFFF',
               fontSize: 30,
@@ -198,6 +202,11 @@ export function GlobalPlacementScene(
               onClose={selection.close}
               onListen={app.onListen}
               speaking={app.speaking}
+              rotation={panelFacingRotation(
+                facing.position,
+                point,
+                savedTransform?.rotation || [0, 0, 0],
+              )}
             />
           )}
         </ViroNode>

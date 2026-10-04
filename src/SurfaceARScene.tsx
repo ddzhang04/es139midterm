@@ -1,4 +1,5 @@
 import useARSelection from './useARSelection';
+import { panelFacingRotation, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -16,7 +17,7 @@ import {
 import type { ViroAnchor } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import { harvardTestStop, stops } from './content';
 import { matchRestoredSurface } from './restoredSurface';
-import { surfaceOffset } from './anchorPlacement';
+import { surfaceOffset, surfaceWorldPoint } from './anchorPlacement';
 import { cloudAnchorError } from './cloudAnchorErrors';
 import { persistentAnchorsEnabled } from './SurfaceARView';
 import type { ViroCloudAnchor } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
@@ -57,6 +58,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
   } | null>(null);
   const stop = app.testSpot ? harvardTestStop : stops.find((item) => item.id === app.stopId)!;
   const selection = useARSelection(app, stop.id);
+  const facing = useARCameraPosition();
   const offset = useRef<[number, number, number]>([0, 0, 0]);
   const operation = useRef(0);
   const pending = useRef(false);
@@ -267,6 +269,13 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
     }
   }
 
+  const parentPlane = matched ? planes.current.get(matched.anchorId) : selectedPlane.current;
+  const parentRotation = parentPlane?.rotation || [0, 0, 0];
+  const panelPoint = surfaceWorldPoint(
+    matched?.offset || offset.current,
+    parentPlane?.position || [0, 0, 0],
+    parentRotation,
+  );
   const tile = (
     <ViroNode visible={app.visible} opacity={app.opacity}>
       {/* Plane-local XZ is the surface. A quad is perfectly flat; 4 mm
@@ -299,6 +308,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
           onClose={selection.close}
           onListen={app.onListen}
           speaking={app.speaking}
+          rotation={panelFacingRotation(facing.position, panelPoint, parentRotation)}
         />
       )}
     </ViroNode>
@@ -306,6 +316,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
 
   return (
     <ViroARScene
+      onCameraTransformUpdate={(transform) => facing.update(transform.position)}
       anchorDetectionTypes={['PlanesHorizontal', 'PlanesVertical']}
       onAnchorFound={forwardFound}
       onAnchorUpdated={forwardUpdated}
