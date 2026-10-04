@@ -125,7 +125,9 @@ test('Harvard marker ignores hidden stories from a previously selected demo stop
   fireEvent.press(screen.getByText('View Site Map'));
   fireEvent.press(screen.getByLabelText('Stop 4: Meet Elias Reed'));
   fireEvent.press(screen.getByText('Explore in AR'));
-  await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
+  await waitFor(() =>
+    expect(screen.getByTestId('surface-session', { includeHiddenElements: true })).toBeTruthy(),
+  );
   fireEvent.press(screen.getByText('Continue Exploring'));
   fireEvent.press(screen.getByLabelText('Choose historical layers'));
   fireEvent(screen.getByLabelText('Personal stories'), 'valueChange', false);
@@ -177,4 +179,33 @@ test('visiting the site map releases AR and returning resumes camera exploration
   expect(screen.queryByTestId('surface-session')).toBeNull();
   fireEvent.press(screen.getByLabelText('Go back'));
   await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
+});
+
+test('tapping a native Harvard marker opens its info screen without restarting AR', async () => {
+  await AsyncStorage.clear();
+  jest.clearAllMocks();
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('surface-session').props.testSpot).toBeTruthy());
+  const initialRevision = screen.getByTestId('surface-session').props.revision;
+  act(() => screen.getByTestId('surface-session').props.onSelect('gun'));
+  expect(screen.getByTestId('story-info-screen')).toBeTruthy();
+  expect(screen.getByText('Harvard test spot')).toBeTruthy();
+  expect(screen.getByText(/Welcome to your Harvard location test/)).toBeTruthy();
+  expect(mockSessionStarted).toHaveBeenCalledTimes(1);
+  expect(mockSessionStopped).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByText('Continue Exploring'));
+  expect(screen.queryByTestId('story-info-screen')).toBeNull();
+  expect(screen.getByTestId('surface-session').props.revision).toBe(initialRevision);
+  expect(mockSessionStarted).toHaveBeenCalledTimes(1);
 });

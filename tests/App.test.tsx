@@ -23,9 +23,7 @@ test('Explore This Site opens the camera, blocks expand, audio works, and progre
   await enterAR();
   const block = screen.getByLabelText('Explore The 10-inch gun');
   fireEvent.press(block);
-  expect(screen.getByLabelText('Explore The 10-inch gun').props.accessibilityState.expanded).toBe(
-    true,
-  );
+  expect(screen.getByTestId('story-info-screen')).toBeTruthy();
   expect(screen.getByText(/This cast-iron barrel/)).toBeTruthy();
   fireEvent.press(screen.getByText('Listen to Story'));
   expect(Speech.speak).toHaveBeenCalledWith(expect.stringContaining('harbor'), expect.any(Object));
@@ -66,7 +64,9 @@ test('map selects a stop and opens its native AR detail', async () => {
   fireEvent.press(screen.getByText('View Site Map'));
   fireEvent.press(screen.getByLabelText('Stop 4: Meet Elias Reed'));
   fireEvent.press(screen.getByText('Explore in AR'));
-  await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
+  await waitFor(() =>
+    expect(screen.getByTestId('native-camera', { includeHiddenElements: true })).toBeTruthy(),
+  );
   expect(screen.getByText(/Assistant lighthouse keeper/)).toBeTruthy();
   fireEvent.press(screen.getByText('View Sources'));
   expect(screen.getByText('Historical Sources')).toBeTruthy();

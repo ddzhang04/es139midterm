@@ -50,7 +50,7 @@ test('small-screen large-text navigation keeps story actions, layers, and develo
     ).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Explore The 10-inch gun'));
     expect(
-      screen.getByTestId('ar-controls').findByProps({ children: 'Listen to Story' }),
+      screen.getByTestId('story-info-content').findByProps({ children: 'Listen to Story' }),
     ).toBeTruthy();
     fireEvent.press(screen.getByText('View Sources'));
     expect(StyleSheet.flatten(screen.getByTestId('app-modal').props.style).maxHeight).toBe(458);
