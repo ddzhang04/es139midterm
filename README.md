@@ -28,6 +28,22 @@ npm run build:ios
 
 Expo Go can run camera and screen-marker demonstrations, but it does not contain the native Viro AR engine. Native surface AR requires an ARKit-compatible iPhone or an ARCore-compatible Android device.
 
+## Local iPhone builds (no EAS cloud build)
+
+Expo SDK 57 requires macOS Tahoe 26.2+ and Xcode 26.4+. Install the macOS update through Software Update, update Xcode through the App Store, and open Xcode once to complete its initial setup. See [Apple's Xcode requirements](https://developer.apple.com/xcode/system-requirements/) and [Expo's SDK requirements](https://docs.expo.dev/versions/latest/).
+
+After the system updates:
+
+```sh
+brew install cocoapods
+npm run doctor:ios
+npm run ios:local
+```
+
+Connect the iPhone by USB, unlock it, trust the Mac, and enable Developer Mode. Choose the physical iPhone when prompted. The command compiles a development app on this Mac and installs it on the phone; it does not invoke EAS Build or consume its cloud build allowance. Signing may require adding your Apple account and development team in Xcode. See [Expo local development](https://docs.expo.dev/guides/local-app-overview/).
+
+Keep Metro running while testing. After the first local installation, UI and JavaScript AR interaction changes reload through `npm run start:native`; native dependency/configuration changes need another local build. The existing `build:ios`, `build:ios:preview`, and `build:ios:simulator` commands use EAS cloud builds.
+
 ## UI preview on a Mac
 
 ```sh

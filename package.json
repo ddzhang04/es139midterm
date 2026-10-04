@@ -17,7 +17,9 @@
     "build:ios:simulator": "npx eas-cli build --platform ios --profile simulator",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm test && npm run format:check"
+    "check": "npm run typecheck && npm test && npm run format:check",
+    "doctor:ios": "node scripts/check-ios-toolchain.mjs",
+    "ios:local": "npm run doctor:ios && expo run:ios --device"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
