@@ -30,9 +30,9 @@ Expo Go can run camera and screen-marker demonstrations, but it does not contain
 
 ## Local iPhone builds (no EAS cloud build)
 
-Expo SDK 57 requires macOS Tahoe 26.2+ and Xcode 26.4+. Install the macOS update through Software Update, update Xcode through the App Store, and open Xcode once to complete its initial setup. See [Apple's Xcode requirements](https://developer.apple.com/xcode/system-requirements/) and [Expo's SDK requirements](https://docs.expo.dev/versions/latest/).
+The local toolchain check reads the minimum Xcode version enforced by the installed React Native package (currently 16.1). It does not force an upgrade to Expo’s documented supported Xcode version (26.4+). Older toolchains may encounter additional compiler or SDK issues; diagnose an actual build failure before requiring further upgrades. Choose an Xcode version compatible with this Mac’s macOS and open Xcode once to finish setup. See [Apple's Xcode requirements](https://developer.apple.com/xcode/system-requirements/) and [Expo's SDK support matrix](https://docs.expo.dev/versions/latest/).
 
-After the system updates:
+Check the installed tools and run locally:
 
 ```sh
 brew install cocoapods

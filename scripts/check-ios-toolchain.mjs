@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 function atLeast(actual, required) {
   const parts = actual.split('.').map(Number);
@@ -16,7 +17,19 @@ if (process.platform !== 'darwin') {
 const problems = [];
 const macOS = execFileSync('sw_vers', ['-productVersion'], { encoding: 'utf8' }).trim();
 console.log(`macOS ${macOS}; Node ${process.versions.node}`);
-if (!atLeast(macOS, [26, 2])) problems.push('Update macOS to Tahoe 26.2 or newer.');
+const helpers = readFileSync(
+  new URL('../node_modules/react-native/scripts/cocoapods/helpers.rb', import.meta.url),
+  'utf8',
+);
+const minimumXcode = helpers.match(
+  /def self\.min_xcode_version_supported\s+return ['"]([\d.]+)['"]/,
+)?.[1];
+if (!minimumXcode) {
+  console.error(
+    'Could not read React Native’s minimum Xcode version. Run npm install and check the native build output.',
+  );
+  process.exit(1);
+}
 if (!atLeast(process.versions.node, [22, 13])) problems.push('Install Node.js 22.13 or newer.');
 try {
   const output = execFileSync('xcodebuild', ['-version'], {
@@ -25,8 +38,10 @@ try {
   });
   const version = output.match(/Xcode (\d+(?:\.\d+)*)/)?.[1];
   console.log(version ? `Xcode ${version}` : 'Xcode version unavailable');
-  if (!version || !atLeast(version, [26, 4]))
-    problems.push('Install Xcode 26.4 or newer, open it once, and finish its setup.');
+  if (!version || !atLeast(version, minimumXcode.split('.').map(Number)))
+    problems.push(
+      `This installed React Native package requires Xcode ${minimumXcode} or newer. Select or install a compatible Xcode, then open it once to finish setup.`,
+    );
 } catch {
   problems.push(
     'Install full Xcode and select it with: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer',
