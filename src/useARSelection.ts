@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ViroClickState } from '@reactvision/react-viro/dist/components/Types/ViroEvents';
 import type { StopId } from './content';
 import type { SurfaceARProps } from './SurfaceARView';
 
@@ -13,18 +14,26 @@ export default function useARSelection(app: SurfaceARProps, id: StopId) {
     selectedRef.current = app.selected;
     setSelected(app.selected);
   }, [app.selected, app.revision, id]);
-  function close() {
+  const close = useCallback(() => {
     selectedRef.current = false;
     setSelected(false);
     latest.current.onDismiss();
-  }
-  function open() {
+  }, []);
+  const open = useCallback(() => {
     // A native tap may be delivered by either the box or its plus label.
     // Opening twice must not immediately collapse the panel again.
     if (selectedRef.current) return;
     selectedRef.current = true;
     setSelected(true);
     latest.current.onSelect(id);
-  }
-  return { selected, open, close };
+  }, [id]);
+  const press = useCallback(
+    (state: ViroClickState) => {
+      // Viro CLICK_DOWN is 1. Accept the initial contact even if finger/phone
+      // movement makes the release miss the marker's geometry.
+      if (state === 1) open();
+    },
+    [open],
+  );
+  return { selected, open, close, press };
 }

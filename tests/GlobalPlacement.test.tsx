@@ -18,6 +18,7 @@ jest.mock('@reactvision/react-viro', () => {
     ViroARSceneNavigator: component('navigator'),
     ViroNode: component('node'),
     ViroBox: component('box'),
+    ViroSphere: component('marker-touch-target'),
     ViroQuad: component('quad'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
@@ -261,4 +262,25 @@ test('the plus sign opens the panel and app dismissal restores the box without m
   );
   expect(view.getByTestId('box').props.visible).toBe(true);
   expect(view.getByTestId('node').props.position).toEqual([1, 2, 1]);
+});
+
+test('touch-down opens the padded marker immediately and subsequent tap events do not reopen it', () => {
+  const app = appProps();
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  const target = view.getByTestId('marker-touch-target');
+  fireEvent(target, 'clickState', 2);
+  expect(app.onSelect).not.toHaveBeenCalled();
+  fireEvent(target, 'clickState', 1);
+  expect(app.onSelect).toHaveBeenCalledTimes(1);
+  expect(view.getByTestId('box').props.visible).toBe(false);
+  expect(view.getByTestId('marker-touch-target').props.visible).toBe(false);
+  fireEvent(target, 'clickState', 3);
+  fireEvent(target, 'click');
+  fireEvent(view.getByTestId('box'), 'clickState', 1);
+  expect(app.onSelect).toHaveBeenCalledTimes(1);
+  expect(view.getAllByTestId('text').some((t) => t.props.text === harvardTestStop.title)).toBe(
+    true,
+  );
 });

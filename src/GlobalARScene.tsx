@@ -7,6 +7,7 @@ import {
   ViroARScene,
   ViroNode,
   ViroBox,
+  ViroSphere,
   ViroText,
   ViroMaterials,
   ViroTrackingStateConstants,
@@ -24,6 +25,12 @@ import { harvardTestStop } from './content';
 
 ViroMaterials.createMaterials({
   GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' },
+  GlobalMarkerTouch: {
+    diffuseColor: '#FFFFFF',
+    lightingModel: 'Constant',
+    writesToDepthBuffer: false,
+    readsFromDepthBuffer: false,
+  },
 });
 type Navigator = { viroAppProps: SurfaceARProps };
 export function GlobalPlacementScene(
@@ -148,6 +155,17 @@ export function GlobalPlacementScene(
           visible={app.visible}
           opacity={app.opacity}
         >
+          {/* Keep a small nonzero opacity so the native hit target remains
+              active. Its bounds provide tap padding from every viewing angle. */}
+          <ViroSphere
+            radius={0.34}
+            materials={['GlobalMarkerTouch']}
+            opacity={0.01}
+            visible={!selection.selected}
+            highAccuracyEvents={false}
+            onClickState={selection.press}
+            onClick={selection.open}
+          />
           <ViroBox
             width={0.48}
             height={0.36}
@@ -155,12 +173,13 @@ export function GlobalPlacementScene(
             materials={['GlobalMarkerRed']}
             visible={!selection.selected}
             onClick={selection.open}
+            onClickState={selection.press}
           />
           <ViroText
             text="+"
             width={0.15}
             height={0.15}
-            position={[0, 0, 0.045]}
+            position={[0, 0, 0.065]}
             transformBehaviors={['billboard']}
             style={{
               color: '#FFFFFF',
@@ -169,6 +188,7 @@ export function GlobalPlacementScene(
               textAlignVertical: 'center',
             }}
             onClick={selection.open}
+            onClickState={selection.press}
             visible={!selection.selected}
           />
           {selection.selected && (

@@ -279,6 +279,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         materials={[stop.color === '#3485E8' ? 'HistoryLensBlue' : 'HistoryLensRed']}
         visible={!selection.selected}
         onClick={selection.open}
+        onClickState={selection.press}
       />
       <ViroText
         text="+"
@@ -288,6 +289,7 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         rotation={[-90, 0, 0]}
         style={{ color: '#FFFFFF', fontSize: 30, textAlign: 'center', textAlignVertical: 'center' }}
         onClick={selection.open}
+        onClickState={selection.press}
         visible={!selection.selected}
       />
       {selection.selected && (
