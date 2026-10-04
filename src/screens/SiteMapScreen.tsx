@@ -1,11 +1,9 @@
 import React from 'react';
-import SavedStoryMap from './SavedStoryMap';
-import type { LocationFix, TestSpot } from '../testLocation';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import PlaceIllustration from '../components/PlaceIllustration';
-import { stops, type StopId } from '../content';
-import { Button, Header, Icon, RoundButton } from '../ui/primitives';
-import { styles as s } from '../ui/styles';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import StoryMapCanvas from '../components/StoryMapCanvas';
+import { harvardTestStop, stops, type StopId } from '../content';
+import { distanceMeters, usableFix, type LocationFix, type TestSpot } from '../testLocation';
+import { Button, Header } from '../ui/primitives';
 import { colors as C } from '../ui/theme';
 
 type Props = {
@@ -19,127 +17,105 @@ type Props = {
   onBack: () => void;
   onSelect: (id: StopId) => void;
   onExplore: () => void;
+  onRequestLocation: () => void;
+  onAddLocation: () => void;
 };
 export default function SiteMapScreen({
-  width,
   spot,
   fix,
   locationError,
   visited,
-  detail,
   developer,
   onBack,
   onSelect,
   onExplore,
+  onRequestLocation,
+  onAddLocation,
 }: Props) {
-  if (spot)
-    return (
-      <SavedStoryMap
+  const point = spot?.placement || spot;
+  const precise = usableFix(fix);
+  const distance = point && precise ? distanceMeters(point, fix) : null;
+  return (
+    <View style={styles.screen}>
+      <Header title="Story Map" developer={developer} back={onBack} />
+      <StoryMapCanvas
         spot={spot}
         fix={fix}
-        locationError={locationError}
-        explored={visited.includes('gun')}
-        developer={developer}
-        onBack={onBack}
-        onExplore={onExplore}
+        onSelect={() => onSelect('gun')}
+        onRequestLocation={onRequestLocation}
       />
-    );
-  const percent = Math.round((visited.length / stops.length) * 100);
-  return (
-    <>
-      <Header
-        developer={developer}
-        title="Story Map"
-        back={onBack}
-        action={
-          <RoundButton
-            icon="locate"
-            label="Choose next demo story"
-            onPress={() => onSelect(stops.find((stop) => !visited.includes(stop.id))?.id || 'gun')}
-          />
-        }
-      />
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={s.progressHeader}>
-          <Text style={s.eyebrow}>DEMO STORY MAP</Text>
-          <Text style={s.smallBody}>
-            Preview four example stories. Create a saved location in DEV to explore a real place.
-          </Text>
-          <View style={s.between}>
-            <Text style={s.smallBody}>
-              {visited.length} of {stops.length} stories explored
+      <ScrollView style={styles.sheet} contentContainerStyle={styles.content}>
+        <Text style={styles.eyebrow}>{spot ? 'SAVED STORY' : 'DISCOVER YOUR SURROUNDINGS'}</Text>
+        {spot ? (
+          <>
+            <Text style={styles.title}>{harvardTestStop.title}</Text>
+            <View style={styles.badges}>
+              <Text style={styles.badge}>
+                {visited.includes('gun') ? 'Explored' : 'Not explored yet'}
+              </Text>
+              <Text style={styles.badge}>
+                {distance === null
+                  ? 'Location pending'
+                  : distance < 1000
+                    ? `${Math.round(distance)} m away`
+                    : `${(distance / 1000).toFixed(1)} km away`}
+              </Text>
+            </View>
+            <Text style={styles.body}>{harvardTestStop.description}</Text>
+            <Text style={styles.note}>Example story at your saved location</Text>
+            <Button title="Explore in AR" onPress={onExplore} />
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>Your map, your stories.</Text>
+            <Text style={styles.body}>
+              Move around the map to explore. Add a location to create your first AR story pin.
             </Text>
-            <Text style={s.progressLabel}>{percent}% complete</Text>
-          </View>
-          <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width: `${percent}%` }]} />
-          </View>
-        </View>
-        <View style={s.legend}>
-          <Text style={s.legendTitle}>LEGEND</Text>
-          <Text style={s.factLabel}>● Explored</Text>
-          <Text style={s.factLabel}>○ Not yet explored</Text>
-        </View>
-        <View style={[s.mapImage, { height: width * 1.04 }]}>
-          <PlaceIllustration map />
-          <View pointerEvents="none" style={{ position: 'absolute', left: 16, top: 12 }}>
-            <Text style={s.eyebrow}>ILLUSTRATIVE LAYOUT</Text>
-          </View>
-          {stops.map((stop, i) => (
-            <Pressable
-              key={stop.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Stop ${i + 1}: ${stop.title}${visited.includes(stop.id) ? ', explored' : ''}`}
-              onPress={() => onSelect(stop.id)}
-              style={[
-                s.mapPin,
-                {
-                  left: `${stop.x * 100}%`,
-                  top: `${stop.y * 100}%`,
-                  backgroundColor: visited.includes(stop.id) ? C.green : 'white',
-                },
-              ]}
-            >
-              <Text
-                maxFontSizeMultiplier={1.5}
-                style={[s.pinNumber, visited.includes(stop.id) && { color: 'white' }]}
-              >
-                {visited.includes(stop.id) ? '✓' : i + 1}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <View style={s.mapBottom}>
-          <View style={s.nextStop}>
-            <View style={s.detailIcon}>
-              <Icon name="search" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.eyebrow}>
-                {detail
-                  ? 'SELECTED STOP'
-                  : visited.length === stops.length
-                    ? 'WALK COMPLETE'
-                    : 'NEXT STORY'}
-              </Text>
-              <Text style={s.nextTitle}>
-                {detail?.title ||
-                  stops.find((stop) => !visited.includes(stop.id))?.title ||
-                  'Every place has a story'}
-              </Text>
-              <Text style={s.factLabel}>
-                {detail?.description ||
-                  'Choose a marker to preview its story. This diagram is not a live location map.'}
-              </Text>
-            </View>
-          </View>
-          <Button
-            title={detail ? 'Explore in AR' : 'Explore Next Story'}
-            icon="route"
-            onPress={onExplore}
-          />
-        </View>
+            <Button title="Add a saved location" onPress={onAddLocation} />
+          </>
+        )}
+        {locationError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.body}>
+            {locationError}
+          </Text>
+        ) : !precise ? (
+          <Text style={styles.note}>Tap the location button to show your position.</Text>
+        ) : (
+          <Text style={styles.note}>Blue dot: you · Red pin: saved story</Text>
+        )}
       </ScrollView>
-    </>
+    </View>
   );
 }
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  sheet: {
+    flexGrow: 0,
+    flexShrink: 1,
+    maxHeight: '44%',
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  content: {
+    padding: 20,
+    gap: 12,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
+    paddingBottom: 24,
+  },
+  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 1.2, color: C.green },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 24, lineHeight: 32, color: C.ink },
+  body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, color: C.muted },
+  note: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, color: C.muted },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badge: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: C.green,
+    backgroundColor: C.cream,
+    padding: 8,
+    borderRadius: 10,
+  },
+});

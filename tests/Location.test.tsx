@@ -166,3 +166,14 @@ test('a future-dated GPS fix cannot unlock a location', () => {
     'uncertain',
   );
 });
+
+test('map location access shows the current fix without creating or moving a saved story', async () => {
+  const hook = renderHook(() => useTestLocation(true));
+  await waitFor(() => expect(hook.result.current.loaded).toBe(true));
+  await act(async () => {
+    await hook.result.current.requestLocation();
+  });
+  await waitFor(() => expect(hook.result.current.fix?.latitude).toBe(42.3745));
+  expect(hook.result.current.spot).toBeNull();
+  expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(TEST_SPOT_KEY, expect.any(String));
+});

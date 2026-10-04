@@ -1,6 +1,12 @@
 # HistoryLens
 
-A native iOS and Android prototype built with React Native, Expo SDK 57, and Viro 2.57.3. It explores historical sites through red object/person markers, blue structure markers, information cards, narration, a site map, and historical layers. The sample experience uses location-neutral illustrative stories and a schematic story map. It makes no claims about a particular historical site.
+A native iOS and Android prototype built with React Native, Expo SDK 57, and Viro 2.57.3. It explores historical sites through red object/person markers, blue structure markers, information cards, narration, a site map, and historical layers. The sample experience uses location-neutral illustrative stories and an interactive native story map. It makes no claims about a particular historical site.
+
+## Interactive map
+
+The Story Map uses `react-native-maps` 1.27.2, with Apple Maps on iOS. Pan and zoom, tap the saved AR pin, or use the location control to recenter. Pins use saved global AR coordinates when available. Demo stories without coordinates are not shown as real locations. Location permission does not create a saved story.
+
+Test the map through `npm run start:ui` in Expo Go without using a cloud build. Older HistoryLens AR binaries do not contain this new native module: they display an upgrade message rather than crashing. Rebuild the iOS development app once to use the map and AR together. Subsequent map UI changes reload through Metro. Android development builds require a Google Maps API key before map testing outside Expo Go.
 
 ## Run the app
 

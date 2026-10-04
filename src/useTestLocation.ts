@@ -27,6 +27,7 @@ export default function useTestLocation(active: boolean) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [locationRequest, setLocationRequest] = useState(0);
   const [now, setNow] = useState(Date.now());
   const operation = useRef(0);
   const locating = useRef(false);
@@ -62,7 +63,7 @@ export default function useTestLocation(active: boolean) {
     };
   }, []);
   useEffect(() => {
-    if (!active || !spot) return;
+    if (!active || !loaded) return;
     let alive = true;
     let subscription: Location.LocationSubscription | null = null;
     const tick = setInterval(() => setNow(Date.now()), 5000);
@@ -111,7 +112,21 @@ export default function useTestLocation(active: boolean) {
       watcher.current = null;
       setFix(null);
     };
-  }, [active, spot?.savedAt]);
+  }, [active, loaded, spot?.savedAt, locationRequest]);
+
+  async function requestLocation() {
+    try {
+      const permission = await locationAPI().requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setError('Allow location access in Settings to show your position on the map.');
+        return;
+      }
+      setError('');
+      setLocationRequest((value) => value + 1);
+    } catch {
+      setError('Location unavailable. Check Location Services and try again.');
+    }
+  }
 
   async function useCurrentLocation() {
     if (locating.current || !loaded) return;
@@ -233,6 +248,7 @@ export default function useTestLocation(active: boolean) {
     nearby,
     allowed: !spot || nearby?.state === 'nearby',
     useCurrentLocation,
+    requestLocation,
     saveAnchor,
     savePlacement,
     clear,

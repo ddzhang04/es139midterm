@@ -1,8 +1,22 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { fireEvent, render } from '@testing-library/react-native';
+import { UIManager } from 'react-native';
 import SiteMapScreen from '../src/screens/SiteMapScreen';
 import type { TestSpot } from '../src/testLocation';
+const mockAnimate = jest.fn();
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef((props: object, ref: unknown) => {
+      React.useImperativeHandle(ref, () => ({ animateToRegion: mockAnimate }));
+      return React.createElement(View, props);
+    }),
+    Marker: (props: object) => React.createElement(View, { ...props, testID: 'map-marker' }),
+    Circle: (props: object) => React.createElement(View, { ...props, testID: 'map-accuracy' }),
+  };
+});
 const spot: TestSpot = {
   name: 'Harvard test spot',
   latitude: 42,
@@ -21,58 +35,68 @@ const spot: TestSpot = {
     altitudeAccuracy: null,
   },
 };
+const fix = () => ({ latitude: 42.3745, longitude: -71.1169, accuracy: 5, timestamp: Date.now() });
 const props = {
   width: 390,
+  visited: [],
   detail: undefined,
   developer: null,
   onBack: jest.fn(),
   onSelect: jest.fn(),
   onExplore: jest.fn(),
+  onRequestLocation: jest.fn(),
+  onAddLocation: jest.fn(),
 };
-beforeEach(() => jest.restoreAllMocks());
-
-test('saved story map shows its real marker coordinates and progress rather than four demo pins', async () => {
-  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
-  const explore = jest.fn();
-  const view = render(
-    <SiteMapScreen
-      {...props}
-      visited={['quarters']}
-      spot={spot}
-      fix={{ latitude: 42.3745, longitude: -71.1169, accuracy: 5, timestamp: Date.now() }}
-      onExplore={explore}
-    />,
-  );
-  expect(view.getByText('Old Town Hall')).toBeTruthy();
-  expect(view.getByText('Not explored yet')).toBeTruthy();
-  expect(view.getByText('0 m away')).toBeTruthy();
-  expect(view.getByText('You are near the saved site. Open AR to explore.')).toBeTruthy();
-  expect(view.queryByLabelText('Stop 4: People & stories')).toBeNull();
-  fireEvent.press(view.getByText('Open in Maps'));
-  await waitFor(() => expect(open).toHaveBeenCalled());
-  expect(open.mock.calls[0][0]).toContain('42.3745,-71.1169');
-  expect(open.mock.calls[0][0]).not.toContain('ll=42,-71');
-  fireEvent.press(view.getByText('Explore in AR'));
-  expect(explore).toHaveBeenCalledTimes(1);
+beforeEach(() => {
+  jest.restoreAllMocks();
+  jest.clearAllMocks();
+  jest.spyOn(UIManager, 'hasViewManagerConfig').mockReturnValue(true);
 });
 
-test('uncertain location and unavailable Maps have actionable states', async () => {
-  jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('unavailable'));
-  const view = render(
-    <SiteMapScreen
-      {...props}
-      visited={['gun']}
-      spot={spot}
-      fix={{ latitude: 42.3745, longitude: -71.1169, accuracy: 100, timestamp: Date.now() }}
-    />,
+test('native map uses the saved AR coordinates and a real location dot, not demo pins', () => {
+  const view = render(<SiteMapScreen {...props} spot={spot} fix={fix()} />);
+  expect(view.getByTestId('native-story-map').props.initialRegion).toMatchObject({
+    latitude: 42.3745,
+    longitude: -71.1169,
+  });
+  const pins = view.getAllByTestId('map-marker');
+  expect(pins).toHaveLength(2);
+  const story = pins.find((pin) => pin.props.identifier === 'saved-story')!;
+  expect(story.props.coordinate).toMatchObject({ latitude: 42.3745, longitude: -71.1169 });
+  fireEvent(story, 'press');
+  expect(props.onSelect).toHaveBeenCalledWith('gun');
+  expect(view.getByText('Not explored yet')).toBeTruthy();
+  fireEvent.press(view.getByText('Explore in AR'));
+  expect(props.onExplore).toHaveBeenCalledTimes(1);
+  expect(view.getByText('0 m away')).toBeTruthy();
+});
+
+test('GPS updates do not steal map gestures, and locate explicitly recenters', () => {
+  const view = render(<SiteMapScreen {...props} spot={spot} fix={fix()} />);
+  fireEvent(view.getByTestId('native-story-map'), 'mapReady');
+  mockAnimate.mockClear();
+  const next = { ...fix(), latitude: 42.375 };
+  view.rerender(<SiteMapScreen {...props} spot={spot} fix={next} />);
+  expect(mockAnimate).not.toHaveBeenCalled();
+  fireEvent.press(view.getByLabelText('Center map on my location'));
+  expect(mockAnimate).toHaveBeenCalledWith(
+    expect.objectContaining({ latitude: next.latitude }),
+    350,
   );
-  expect(view.getByText('Explored')).toBeTruthy();
-  expect(view.getByText('Waiting for a recent, precise GPS reading.')).toBeTruthy();
-  expect(view.queryByText('0 m away')).toBeNull();
-  fireEvent.press(view.getByText('Open in Maps'));
-  await waitFor(() =>
-    expect(
-      view.getByText('Could not open Maps. Try again or use the coordinates below.'),
-    ).toBeTruthy(),
-  );
+});
+
+test('empty map has no invented stories; uncertain location requests access without saving a spot', () => {
+  const view = render(<SiteMapScreen {...props} fix={{ ...fix(), accuracy: 100 }} />);
+  expect(view.queryAllByTestId('map-marker')).toHaveLength(0);
+  fireEvent.press(view.getByLabelText('Center map on my location'));
+  expect(props.onRequestLocation).toHaveBeenCalledTimes(1);
+  fireEvent.press(view.getByText('Add a saved location'));
+  expect(props.onAddLocation).toHaveBeenCalledTimes(1);
+});
+
+test('old builds show an actionable message instead of mounting missing native map views', () => {
+  jest.spyOn(UIManager, 'hasViewManagerConfig').mockReturnValue(false);
+  const view = render(<SiteMapScreen {...props} spot={spot} />);
+  expect(view.queryByTestId('native-story-map')).toBeNull();
+  expect(view.getByText('Native map needs an updated app')).toBeTruthy();
 });

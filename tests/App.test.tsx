@@ -5,6 +5,7 @@ import * as Speech from 'expo-speech';
 import { Alert } from 'react-native';
 import App from '../App';
 import { stops } from '../src/content';
+import { TEST_SPOT_KEY } from '../src/testLocation';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -60,7 +61,7 @@ test('Explore This Site opens the camera, blocks expand, audio works, and progre
     ),
   );
   fireEvent.press(screen.getByText('Site map ↗'));
-  expect(screen.getByText('1 of 4 stories explored')).toBeTruthy();
+  expect(screen.getByText('Your map, your stories.')).toBeTruthy();
 });
 
 test('historical modes, comparison slider, and layer switches control visible blocks', async () => {
@@ -82,16 +83,25 @@ test('historical modes, comparison slider, and layer switches control visible bl
   expect(screen.getByLabelText('Explore archival photograph')).toBeTruthy();
 });
 
-test('map selects a stop and opens its native AR detail', async () => {
+test('saved map opens the actual story in AR without marking it explored on map preview', async () => {
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
   await start();
   fireEvent.press(screen.getByText('View Site Map'));
-  fireEvent.press(screen.getByLabelText('Stop 4: People & stories'));
+  await waitFor(() => expect(screen.getByText('Old Town Hall')).toBeTruthy());
+  expect(screen.getByText('Not explored yet')).toBeTruthy();
   fireEvent.press(screen.getByText('Explore in AR'));
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
-  expect(screen.getByText(/Meet the voices and experiences/)).toBeTruthy();
-  fireEvent.press(screen.getByText('View Sources'));
-  expect(screen.getByText('Historical Sources')).toBeTruthy();
-  expect(screen.getByText(/A place’s history includes/)).toBeTruthy();
+  expect(screen.getAllByText('Old Town Hall').length).toBeGreaterThan(0);
+  expect(screen.getByText(/A gathering place for town meetings/)).toBeTruthy();
 });
 
 test('site bookmark persists and acknowledgment panel closes', async () => {
@@ -133,10 +143,19 @@ test('saved exploration progress is restored after reopening the app', async () 
     'historylens-progress',
     JSON.stringify({ visited: ['gun', 'keeper'], saved: true }),
   );
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: 123,
+    }),
+  );
   await start();
   fireEvent.press(screen.getByText('View Site Map'));
-  await waitFor(() => expect(screen.getByText('2 of 4 stories explored')).toBeTruthy());
-  expect(screen.getByText('50% complete')).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('Explored')).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Go back'));
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
@@ -170,15 +189,17 @@ test('denied camera permission offers Settings and keeps the demo usable', async
   }
 });
 
-test('the general experience uses neutral site copy and an illustrative story map', async () => {
+test('the general experience uses neutral site copy and an empty map until a place is saved', async () => {
   await start();
   expect(screen.getByText('Objects · places · people')).toBeTruthy();
   expect(screen.queryByText(/Battery Point|Fort Harbor|harbor’s past/)).toBeNull();
   fireEvent.press(screen.getByText('View Site Map'));
-  expect(screen.getByText('ILLUSTRATIVE LAYOUT')).toBeTruthy();
-  expect(screen.getByText(/This diagram is not a live location map/)).toBeTruthy();
-  fireEvent.press(screen.getByLabelText('Stop 1: Objects & artifacts'));
-  fireEvent.press(screen.getByText('Explore in AR'));
+  expect(screen.getByText('Your map, your stories.')).toBeTruthy();
+  expect(screen.getByText('Add a saved location')).toBeTruthy();
+  expect(screen.queryByText('ILLUSTRATIVE LAYOUT')).toBeNull();
+  fireEvent.press(screen.getByLabelText('Go back'));
+  await enterAR();
+  fireEvent.press(screen.getByLabelText('Explore Objects & artifacts'));
   expect(screen.getByText(/Discover the everyday objects/)).toBeTruthy();
   fireEvent.press(screen.getByText('Continue Exploring'));
   fireEvent.press(screen.getByLabelText('Go back'));

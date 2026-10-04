@@ -213,7 +213,7 @@ export default function HistoryLens() {
     setScreen('ar');
     setMode(id === 'keeper' ? 'discover' : 'reconstruct');
     void enableCamera();
-    if (detail?.id !== id) openStop(id);
+    openStop(id);
   }
 
   const devControl = (
@@ -330,8 +330,10 @@ export default function HistoryLens() {
           detail={detail}
           developer={devControl}
           onBack={back}
-          onSelect={openStop}
+          onSelect={(id) => setSelected(id)}
           onExplore={exploreFromMap}
+          onRequestLocation={() => void geo.requestLocation()}
+          onAddLocation={() => setPanel('dev')}
         />
       )}
       {screen === 'ar' && (
