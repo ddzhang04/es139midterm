@@ -81,7 +81,7 @@ export default function HistoryLens() {
   const [anchorError, setAnchorError] = useState('');
   const [markerGuide, setMarkerGuide] = useState<string | null>(null);
   const [previewSpot, setPreviewSpot] = useState<number | null>(null);
-  const geo = useTestLocation(screen === 'ar' && foreground);
+  const geo = useTestLocation((screen === 'ar' || screen === 'map') && foreground);
   const [placementStop, setPlacementStop] = useState<StopId>('gun');
   const {
     speaking,
@@ -206,12 +206,14 @@ export default function HistoryLens() {
     Haptics.selectionAsync().catch(() => {});
   }
   function exploreFromMap() {
-    const id = detail?.id || stops.find((stop) => !visited.includes(stop.id))?.id || 'gun';
+    const id = geo.spot
+      ? 'gun'
+      : detail?.id || stops.find((stop) => !visited.includes(stop.id))?.id || 'gun';
     setPlacementStop(id);
     setScreen('ar');
-    setMode(detail?.id === 'keeper' ? 'discover' : 'reconstruct');
+    setMode(id === 'keeper' ? 'discover' : 'reconstruct');
     void enableCamera();
-    if (!detail) openStop(id);
+    if (detail?.id !== id) openStop(id);
   }
 
   const devControl = (
@@ -321,6 +323,9 @@ export default function HistoryLens() {
       {screen === 'map' && (
         <SiteMapScreen
           width={width}
+          spot={geo.spot}
+          fix={geo.fix}
+          locationError={geo.error}
           visited={visited}
           detail={detail}
           developer={devControl}

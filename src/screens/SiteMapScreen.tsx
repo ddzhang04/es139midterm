@@ -1,4 +1,6 @@
 import React from 'react';
+import SavedStoryMap from './SavedStoryMap';
+import type { LocationFix, TestSpot } from '../testLocation';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import PlaceIllustration from '../components/PlaceIllustration';
 import { stops, type StopId } from '../content';
@@ -8,6 +10,9 @@ import { colors as C } from '../ui/theme';
 
 type Props = {
   width: number;
+  spot?: TestSpot | null;
+  fix?: LocationFix | null;
+  locationError?: string;
   visited: StopId[];
   detail: (typeof stops)[number] | undefined;
   developer: React.ReactNode;
@@ -17,6 +22,9 @@ type Props = {
 };
 export default function SiteMapScreen({
   width,
+  spot,
+  fix,
+  locationError,
   visited,
   detail,
   developer,
@@ -24,6 +32,18 @@ export default function SiteMapScreen({
   onSelect,
   onExplore,
 }: Props) {
+  if (spot)
+    return (
+      <SavedStoryMap
+        spot={spot}
+        fix={fix}
+        locationError={locationError}
+        explored={visited.includes('gun')}
+        developer={developer}
+        onBack={onBack}
+        onExplore={onExplore}
+      />
+    );
   const percent = Math.round((visited.length / stops.length) * 100);
   return (
     <>
@@ -34,13 +54,17 @@ export default function SiteMapScreen({
         action={
           <RoundButton
             icon="locate"
-            label="Locate next stop"
+            label="Choose next demo story"
             onPress={() => onSelect(stops.find((stop) => !visited.includes(stop.id))?.id || 'gun')}
           />
         }
       />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={s.progressHeader}>
+          <Text style={s.eyebrow}>DEMO STORY MAP</Text>
+          <Text style={s.smallBody}>
+            Preview four example stories. Create a saved location in DEV to explore a real place.
+          </Text>
           <View style={s.between}>
             <Text style={s.smallBody}>
               {visited.length} of {stops.length} stories explored
