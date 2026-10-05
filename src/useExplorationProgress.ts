@@ -16,7 +16,9 @@ export function parseProgress(raw: string | null): Progress {
     const visited = Array.isArray(record.visited)
       ? record.visited.filter(
           (id): id is StopId =>
-            stops.some((stop) => stop.id === id) || campusPlaces.some((place) => place.id === id),
+            id === 'demo-tree' ||
+            stops.some((stop) => stop.id === id) ||
+            campusPlaces.some((place) => place.id === id),
         )
       : [];
     return { visited: [...new Set(visited)], saved: record.saved === true };

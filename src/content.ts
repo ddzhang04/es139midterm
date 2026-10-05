@@ -5,7 +5,8 @@ export type StopId =
   | 'keeper'
   | 'harvard-science-center'
   | 'quincy-house-courtyard'
-  | 'malkin-athletic-center';
+  | 'malkin-athletic-center'
+  | 'demo-tree';
 export type LayerId = 'structures' | 'people' | 'equipment' | 'photos' | 'stories';
 export type StoryStop = {
   id: StopId;
@@ -102,4 +103,18 @@ export const harvardTestStop: StoryStop = {
   description: 'A gathering place for town meetings, celebrations, and everyday community life.',
   story:
     'In this fictional example, the hall opened in 1892. Neighbors gathered here to discuss local issues, share news, and celebrate together. Over the years, the building became a library and later a community center. Look for the tall windows and stone entrance: details that hint at how the space was used. This sample shows how a real site’s researched history could appear beside it in AR.',
+};
+
+export const treeDemoStory: StoryStop = {
+  id: 'demo-tree',
+  title: 'Doodle tree',
+  category: 'Placeable demo',
+  year: 'Demo',
+  color: '#17BB21',
+  layer: 'structures',
+  x: 0.5,
+  y: 0.4,
+  description: 'A deliberately bad tree drawing placed in your AR world.',
+  story:
+    'This doodle tree is a playful placement demo. It stays upright at the position where you placed it, so you can move around it. It is a flat transparent drawing, not a full 3D tree. Place it again to move it in front of you. Demo placement lasts for this AR session and does not change saved locations.',
 };

@@ -113,3 +113,28 @@ test('opening AR near a campus site automatically discovers its circle without c
   expect(screen.getByTestId('campus-ar-session').props.visible).toBe(true);
   expect(await AsyncStorage.getItem(TEST_SPOT_KEY)).toBeNull();
 });
+
+test('tree demo works away from campus without creating or saving a GPS location', async () => {
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('campus-ar-session')).toBeTruthy());
+  fireEvent.press(screen.getByText('Place demo tree'));
+  await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.demoTree).toBe(true));
+  const props = screen.getByTestId('campus-ar-session').props;
+  expect(props.testSpot).toBeNull();
+  expect(props.visible).toBe(true);
+  expect(props.stopId).toBe('demo-tree');
+  expect(props.onPlacementSaved).toBeUndefined();
+  expect(screen.queryByText('Save global position')).toBeNull();
+  const revision = props.revision;
+  fireEvent.press(screen.getByText('Place tree again'));
+  expect(screen.getByTestId('campus-ar-session').props.revision).toBeGreaterThan(revision);
+  act(() => screen.getByTestId('campus-ar-session').props.onSelect('demo-tree'));
+  fireEvent.press(screen.getByText('Read full story'));
+  expect(screen.getByText(/This doodle tree is a playful placement demo/)).toBeTruthy();
+  fireEvent.press(screen.getByText('Return to AR'));
+  fireEvent.press(screen.getByText('Close AR information'));
+  fireEvent.press(screen.getByText('Return to site markers'));
+  await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.demoTree).toBe(false));
+  expect(await AsyncStorage.getItem(TEST_SPOT_KEY)).toBeNull();
+});

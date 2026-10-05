@@ -1,5 +1,5 @@
 import useARSelection from './useARSelection';
-import { readingPanelPose, useARCameraPosition } from './arPanelFacing';
+import { panelFacingRotation, readingPanelPose, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -8,6 +8,7 @@ import {
   ViroARScene,
   ViroNode,
   ViroSphere,
+  ViroImage,
   ViroText,
   ViroMaterials,
   ViroTrackingStateConstants,
@@ -24,6 +25,7 @@ import {
 import { harvardTestStop } from './content';
 
 ViroMaterials.createMaterials({
+  DoodleTree: { lightingModel: 'Constant', cullMode: 'None' },
   GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' },
   GlobalMarkerTouch: {
     diffuseColor: '#FFFFFF',
@@ -52,6 +54,7 @@ export function GlobalPlacementScene(
   const generation = useRef(0);
   const mounted = useRef(true);
   const phase = useRef<'globalPlaced' | 'globalRestored' | 'globalSaved'>('globalPlaced');
+  const [treeRotation, setTreeRotation] = useState<Vector3>([0, 0, 0]);
   const [point, setPoint] = useState<Vector3 | null>(null);
   useEffect(() => {
     mounted.current = true;
@@ -63,18 +66,32 @@ export function GlobalPlacementScene(
   }, []);
   function place() {
     const props = latest.current;
-    if (Platform.OS !== 'ios') {
+    if (Platform.OS !== 'ios' && !props.demoTree) {
       props.onPhaseChange('unsupported');
       props.onAnchorError?.('Global compass alignment currently requires the iPhone build.');
       return;
     }
     if (position.current || !ready.current || !camera.current) return;
     if (props.fixedLocation && !props.visible) return;
-    const saved = props.fixedLocation || props.revision === 0 ? props.testSpot?.placement : null;
+    const saved =
+      !props.demoTree && (props.fixedLocation || props.revision === 0)
+        ? props.testSpot?.placement
+        : null;
     if (saved && !usableFix(props.locationFix)) return;
     const next: Vector3 = saved
       ? globalToWorld(saved, props.locationFix!, camera.current.position)
       : (camera.current.position.map((v, i) => v + camera.current!.forward[i] * 2) as Vector3);
+    if (props.demoTree) {
+      const horizontal = Math.hypot(camera.current.forward[0], camera.current.forward[2]);
+      const direction =
+        horizontal > 0.001
+          ? [camera.current.forward[0] / horizontal, 0, camera.current.forward[2] / horizontal]
+          : [0, 0, -1];
+      next[0] = camera.current.position[0] + direction[0] * 2;
+      next[1] = camera.current.position[1] - 0.3;
+      next[2] = camera.current.position[2] + direction[2] * 2;
+      setTreeRotation(panelFacingRotation(camera.current.position, next, [0, 0, 0]));
+    }
     position.current = next;
     setPoint(next);
     phase.current = saved ? 'globalRestored' : 'globalPlaced';
@@ -130,7 +147,7 @@ export function GlobalPlacementScene(
       }
     })();
   }, [app.saveRequest]);
-  const savedTransform = app.revision === 0 ? app.testSpot?.placement : null;
+  const savedTransform = !app.demoTree && app.revision === 0 ? app.testSpot?.placement : null;
   const markerDistance = point ? Math.hypot(...point.map((v, i) => v - facing.position[i])) : 0;
   const tapRadius = Math.max(0.34, Math.min(1.2, markerDistance * 0.14));
   const readingPose =
@@ -184,10 +201,22 @@ export function GlobalPlacementScene(
             onClickState={selection.press}
             onClick={selection.open}
           />
+          {app.demoTree && !selection.selected && (
+            <ViroImage
+              source={require('../assets/demos/doodle-tree.png')}
+              materials={['DoodleTree']}
+              width={1.25}
+              height={1.5}
+              rotation={treeRotation}
+              onClick={selection.open}
+              onClickState={selection.press}
+              highAccuracyEvents={false}
+            />
+          )}
           <ViroSphere
             radius={0.24}
             materials={['GlobalMarkerRed']}
-            visible={!selection.selected}
+            visible={!selection.selected && !app.demoTree}
             onClick={selection.open}
             onClickState={selection.press}
             highAccuracyEvents={false}
@@ -206,7 +235,7 @@ export function GlobalPlacementScene(
             }}
             onClick={selection.open}
             onClickState={selection.press}
-            visible={!selection.selected}
+            visible={!selection.selected && !app.demoTree}
           />
           {selection.selected && (
             <ARInfoPanel

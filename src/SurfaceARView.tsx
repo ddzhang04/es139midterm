@@ -25,6 +25,7 @@ export type SurfaceARProps = {
   stopId: StopId;
   story?: StoryStop;
   fixedLocation?: boolean;
+  demoTree?: boolean;
   testSpot?: TestSpot | null;
   locationFix?: LocationFix | null;
   onMarkerGuide?: (message: string | null) => void;
@@ -110,7 +111,7 @@ export default function SurfaceARView(props: SurfaceARProps) {
       </View>
     );
   const NativeSurfaceAR = (
-    props.testSpot ? require('./GlobalARScene') : require('./SurfaceARScene')
+    props.testSpot || props.demoTree ? require('./GlobalARScene') : require('./SurfaceARScene')
   ).default as React.ComponentType<SurfaceARProps>;
   return <NativeSurfaceAR {...props} />;
 }

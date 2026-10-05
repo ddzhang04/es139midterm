@@ -120,3 +120,7 @@ Native builds have compiled on EAS. The simulator has rendered the demo UI. Phys
 Local provider settings belong in ignored `.env` files, with the same configuration in the EAS development environment when building. See `.env.example`. Phone profiles can configure ReactVision through `HISTORYLENS_RV_API_KEY` and `HISTORYLENS_RV_PROJECT_ID`; simulator previews omit that provider. Do not commit credentials.
 
 The dependency audit still reports upstream advisories in the Expo/Viro and development-tool dependency trees. The compatible `http-cache-semantics` update has been applied. Do not use `npm audit fix --force` to switch SDK or Jest major versions without checking Expo/Viro compatibility.
+
+### Placeable doodle tree
+
+In Explore in AR, tap **Place demo tree** to place the transparent drawing two metres ahead. It stays upright and fixed in that session, independent of GPS. Tap it to read the demo card, **Place tree again** to move it, or **Return to site markers** to exit. This is a flat AR sprite, not a volumetric 3D model. It does not alter saved locations or persist across restarts. The camera/demo fallback shows the same asset but cannot provide world tracking.

@@ -5,7 +5,7 @@ import { GlobalPlacementScene } from '../src/GlobalARScene';
 import { globalToWorld, markerDirection, worldToGlobal } from '../src/globalPlacement';
 import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
-import { harvardTestStop } from '../src/content';
+import { harvardTestStop, treeDemoStory } from '../src/content';
 import ARInfoPanel, { storyPages } from '../src/components/ARInfoPanel';
 import { panelFacingRotation, readingPanelPose } from '../src/arPanelFacing';
 import { campusPlaces, campusSpot, campusStory } from '../src/mapPlaces';
@@ -25,6 +25,7 @@ jest.mock('@reactvision/react-viro', () => {
         props,
       ),
     ViroQuad: component('quad'),
+    ViroImage: component('tree-image'),
     ViroBox: component('button-target'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
@@ -475,4 +476,38 @@ test('fixed campus geotags wait until unlocked and never fall back to a camera p
   );
   expect(view.getByTestId('marker')).toBeTruthy();
   expect(view.getAllByTestId('node')[0].props.position[2]).toBeCloseTo(3 - 11.11949, 3);
+});
+
+test('doodle tree places without GPS, remains upright and fixed while walking, and repositions on demand', () => {
+  const app: SurfaceARProps = {
+    ...appProps(),
+    demoTree: true,
+    story: treeDemoStory,
+    stopId: 'demo-tree',
+    testSpot: null,
+    locationFix: null,
+    revision: 1,
+  };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+    ...camera,
+    forward: [0, -0.8, -0.6],
+  });
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  expect(view.getByTestId('tree-image').props.rotation).toEqual([0, 0, 0]);
+  expect(view.getByTestId('node').props.position).toEqual([1, 1.7, 1]);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+    ...camera,
+    position: [4, 2, 3],
+    forward: [1, 0, 0],
+  });
+  expect(view.getByTestId('node').props.position).toEqual([1, 1.7, 1]);
+  expect(view.getByTestId('tree-image').props.rotation).toEqual([0, 0, 0]);
+  fireEvent(view.getByTestId('tree-image'), 'click');
+  expect(app.onSelect).toHaveBeenCalledWith('demo-tree');
+  expect(app.onPlacementSaved).not.toHaveBeenCalled();
+  view.rerender(
+    <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, revision: 2 } }} />,
+  );
+  expect(view.getByTestId('node').props.position).toEqual([6, 1.7, 3]);
 });
