@@ -125,8 +125,8 @@ test('Harvard marker ignores hidden stories from a previously selected demo stop
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('surface-session')).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Open AR information for People & stories'));
-  fireEvent.press(screen.getByText('Reconstruct'));
-  act(() => screen.getByTestId('surface-session').props.onDismiss());
+  fireEvent.press(screen.getByText('Close AR information'));
+  fireEvent.press(screen.getByLabelText('Scan site and reconstruct'));
   fireEvent.press(screen.getByLabelText('Choose historical layers'));
   fireEvent(screen.getByLabelText('Personal stories'), 'valueChange', false);
   fireEvent.press(screen.getByLabelText('Close layers'));

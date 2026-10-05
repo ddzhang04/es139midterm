@@ -236,9 +236,14 @@ test('red box expands a world-space information panel with story pages, audio, a
       .getAllByTestId('node')
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
       .findByProps({ testID: 'button-target' });
+  const tapButton = (x: number, y = -0.4) => {
+    const press = buttonAt(x, y).props.onClickState;
+    act(() => press(1));
+    act(() => press(2));
+  };
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
-  fireEvent(buttonAt(0, -0.6), 'click');
+  tapButton(0, -0.6);
   expect(app.onExpand).toHaveBeenCalledTimes(1);
   const panel = view.getAllByTestId('node')[1];
   [0, -0.1, 0].forEach((v, i) => expect(panel.props.position[i]).toBeCloseTo(v));
@@ -248,18 +253,18 @@ test('red box expands a world-space information panel with story pages, audio, a
   );
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
-    fireEvent(buttonAt(0.41), 'click');
+    tapButton(0.41);
     expect(text(page)).toBeTruthy();
   }
   expect(pages.join(' ')).toBe(harvardTestStop.story);
   expect(text('Next')).toBeUndefined();
-  fireEvent(buttonAt(-0.41), 'click');
+  tapButton(-0.41);
   expect(text('Next')).toBeTruthy();
-  fireEvent(buttonAt(0), 'click');
+  tapButton(0);
   expect(app.onListen).toHaveBeenCalledTimes(1);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [4, 2, 3] });
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
-  fireEvent(buttonAt(0.58, 0.6), 'click');
+  tapButton(0.58, 0.6);
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
   expect(view.getByTestId('marker').props.visible).toBe(true);
   expect(text(harvardTestStop.title)).toBeUndefined();
@@ -382,7 +387,6 @@ test('AR controls respond on contact once and keep decorative geometry out of hi
     fireEvent(target(x, y), 'clickState', 1);
     fireEvent(target(x, y), 'clickState', 2);
     fireEvent(target(x, y), 'clickState', 3);
-    fireEvent(target(x, y), 'click');
   };
   gesture(0.41);
   const firstStoryPage = storyPages(harvardTestStop.story)[0];
@@ -545,4 +549,28 @@ test('tree stays visible with its message pinned beside it after tapping', () =>
   });
   expect(card.props.position).toEqual([1.5, 0, 0]);
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 1.7, 1]);
+});
+
+test('opening-card release cannot expand it and each visible button needs its own touch-down', () => {
+  const expand = jest.fn();
+  const close = jest.fn();
+  const view = render(<ARInfoPanel detail={treeDemoStory} onClose={close} onExpand={expand} />);
+  const buttonAt = (x: number, y: number) =>
+    view
+      .getAllByTestId('node')
+      .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
+      .findByProps({ testID: 'button-target' });
+  const fullScreen = buttonAt(0, -0.6);
+  expect(fullScreen.props.materials).toEqual(['ARInfoButton']);
+  fireEvent(fullScreen, 'clickState', 2);
+  fireEvent(fullScreen, 'clickState', 3);
+  expect(expand).not.toHaveBeenCalled();
+  fireEvent(fullScreen, 'clickState', 1);
+  fireEvent(fullScreen, 'clickState', 1);
+  fireEvent(fullScreen, 'clickState', 2);
+  fireEvent(fullScreen, 'clickState', 3);
+  expect(expand).toHaveBeenCalledTimes(1);
+  fireEvent(buttonAt(0.58, 0.6), 'clickState', 1);
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(expand).toHaveBeenCalledTimes(1);
 });

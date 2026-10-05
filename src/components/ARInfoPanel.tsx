@@ -19,13 +19,6 @@ ViroMaterials.createMaterials({
     writesToDepthBuffer: true,
     readsFromDepthBuffer: true,
   },
-  ARInfoTouch: {
-    diffuseColor: '#FFFFFF',
-    lightingModel: 'Constant',
-    colorWritesMask: 'None',
-    writesToDepthBuffer: false,
-    readsFromDepthBuffer: false,
-  },
   ARInfoText: {
     lightingModel: 'Constant',
     cullMode: 'None',
@@ -93,30 +86,19 @@ function ARButton({
 }) {
   const latestPress = useRef(onPress);
   latestPress.current = onPress;
-  const handledDown = useRef(false);
+  const pressed = useRef(false);
   const press = useCallback((state: ViroClickState) => {
-    if (state === 1) {
-      handledDown.current = true;
+    if (state === 1 && !pressed.current) {
+      pressed.current = true;
       latestPress.current();
+    } else if (state === 2 || state === 3) {
+      pressed.current = false;
     }
   }, []);
-  const click = useCallback(() => {
-    // Viro also emits CLICKED after touch-down. Execute one action per gesture.
-    if (handledDown.current) {
-      handledDown.current = false;
-      return;
-    }
-    latestPress.current();
-  }, []);
+  // Require a fresh contact on this button. A release from the tap that
+  // opened the card must never activate a newly mounted action underneath it.
   return (
     <ViroNode position={[x, y, 0.012]}>
-      <ViroQuad
-        width={width}
-        height={height}
-        renderingOrder={11}
-        materials={['ARInfoButton']}
-        ignoreEventHandling
-      />
       <ARText
         text={label}
         textClipMode="ClipToBounds"
@@ -133,15 +115,14 @@ function ARButton({
         ignoreEventHandling
       />
       <ViroBox
-        width={width + 0.02}
-        height={height + 0.01}
-        length={0.04}
-        position={[0, 0, 0.06]}
-        materials={['ARInfoTouch']}
-        opacity={1}
+        width={width}
+        height={height}
+        length={0.012}
+        position={[0, 0, 0]}
+        materials={['ARInfoButton']}
+        renderingOrder={11}
         highAccuracyEvents
         onClickState={press}
-        onClick={click}
       />
     </ViroNode>
   );

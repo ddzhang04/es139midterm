@@ -675,249 +675,262 @@ export default function HistoryLens() {
               </ScrollView>
             }
             footer={
-              <>
-                {nativeAR &&
-                  !campusTarget &&
-                  !demoTree &&
-                  geo.spot?.placement &&
-                  surfacePhase === 'anchorError' && (
-                    <Button
-                      compact
-                      title="Retry saved position"
-                      onPress={() => {
-                        setPlacementRevision(0);
-                        setAnchorRestoreRequest((value) => value + 1);
-                      }}
-                    />
-                  )}
-                {nativeAR &&
-                  !campusTarget &&
-                  !demoTree &&
-                  geo.spot &&
-                  (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && (
-                    <Button
-                      compact
-                      title="Save global position"
-                      onPress={() => setAnchorSaveRequest((value) => value + 1)}
-                    />
-                  )}
-                {nativeAR && !selected && !layerPanel && (!campusTarget || locationUnlocked) && (
-                  <View style={{ gap: 10, marginBottom: 12 }}>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ gap: 8 }}
-                    >
-                      {(targetStory ? [targetStory] : stops).map((stop) => (
-                        <Pressable
-                          key={stop.id}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open AR information for ${stop.title}`}
-                          accessibilityState={{ selected: placementStop === stop.id }}
-                          onPress={() => {
-                            setPlacementStop(stop.id);
-                            openStop(stop.id);
-                          }}
-                          style={[
-                            s.tag,
-                            {
-                              minHeight: 44,
-                              backgroundColor: placementStop === stop.id ? stop.color : C.cream,
-                            },
-                          ]}
-                        >
-                          <Text
+              nativeAR && selected && !layerPanel ? (
+                <View testID="ar-card-toolbar" style={{ flexDirection: 'row', gap: 8 }}>
+                  <Button
+                    compact
+                    grow
+                    dark
+                    secondary
+                    title={speaking ? 'Stop audio' : 'Listen'}
+                    onPress={listen}
+                  />
+                  <Button
+                    compact
+                    grow
+                    dark
+                    secondary
+                    title="Read full story"
+                    onPress={() => setFullScreenStory(true)}
+                  />
+                  <Button
+                    compact
+                    grow
+                    dark
+                    secondary
+                    title="Close AR information"
+                    onPress={dismissStory}
+                  />
+                </View>
+              ) : (
+                <>
+                  {nativeAR &&
+                    !campusTarget &&
+                    !demoTree &&
+                    geo.spot?.placement &&
+                    surfacePhase === 'anchorError' && (
+                      <Button
+                        compact
+                        title="Retry saved position"
+                        onPress={() => {
+                          setPlacementRevision(0);
+                          setAnchorRestoreRequest((value) => value + 1);
+                        }}
+                      />
+                    )}
+                  {nativeAR &&
+                    !campusTarget &&
+                    !demoTree &&
+                    geo.spot &&
+                    (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && (
+                      <Button
+                        compact
+                        title="Save global position"
+                        onPress={() => setAnchorSaveRequest((value) => value + 1)}
+                      />
+                    )}
+                  {nativeAR && !selected && !layerPanel && (!campusTarget || locationUnlocked) && (
+                    <View style={{ gap: 10, marginBottom: 12 }}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ gap: 8 }}
+                      >
+                        {(targetStory ? [targetStory] : stops).map((stop) => (
+                          <Pressable
+                            key={stop.id}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open AR information for ${stop.title}`}
+                            accessibilityState={{ selected: placementStop === stop.id }}
+                            onPress={() => {
+                              setPlacementStop(stop.id);
+                              openStop(stop.id);
+                            }}
                             style={[
-                              s.tagText,
-                              { color: placementStop === stop.id ? 'white' : C.green },
+                              s.tag,
+                              {
+                                minHeight: 44,
+                                backgroundColor: placementStop === stop.id ? stop.color : C.cream,
+                              },
                             ]}
                           >
-                            {stop.title}
+                            <Text
+                              style={[
+                                s.tagText,
+                                { color: placementStop === stop.id ? 'white' : C.green },
+                              ]}
+                            >
+                              {stop.title}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                      {!campusTarget && (
+                        <Button
+                          compact
+                          title={
+                            demoTree
+                              ? 'Place tree again'
+                              : geo.spot
+                                ? 'Show marker in front of me'
+                                : 'Place marker again'
+                          }
+                          dark
+                          secondary
+                          onPress={showMarker}
+                        />
+                      )}
+                    </View>
+                  )}
+                  {demoTree && !nativeAR && !selected && !layerPanel && (
+                    <Button compact dark secondary title="Place tree again" onPress={showMarker} />
+                  )}
+                  {!selected && !layerPanel && (
+                    <Button
+                      compact
+                      dark
+                      secondary
+                      title={demoTree ? 'Return to site markers' : 'Place demo tree'}
+                      onPress={demoTree ? enterAR : placeDemoTree}
+                    />
+                  )}
+                  {camera && !supportsSurfaceAR && (
+                    <Text
+                      style={{ color: 'white', textAlign: 'center', fontSize: 12, marginBottom: 8 }}
+                    >
+                      Surface AR needs the HistoryLens development build. Expo Go shows screen
+                      markers.
+                    </Text>
+                  )}
+                  {detail && !layerPanel && !nativeAR ? (
+                    <StoryCard
+                      detail={detail}
+                      speaking={speaking}
+                      stackActions={stackActions}
+                      onClose={dismissStory}
+                      onListen={listen}
+                      onExpand={() => setFullScreenStory(true)}
+                      onSources={() => setPanel('sources')}
+                    />
+                  ) : mode === 'compare' ? (
+                    <View style={s.comparison}>
+                      <Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text>
+                      <View
+                        style={[
+                          s.sliderRow,
+                          stackActions && {
+                            flexDirection: 'column',
+                            borderRadius: 14,
+                            paddingVertical: 8,
+                          },
+                        ]}
+                      >
+                        <Text style={s.sliderLabel}>Past</Text>
+                        <Slider
+                          accessibilityLabel="Historical overlay opacity"
+                          accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }}
+                          style={
+                            stackActions ? { width: '100%', height: 44 } : { flex: 1, height: 44 }
+                          }
+                          minimumValue={0}
+                          maximumValue={100}
+                          value={past}
+                          onValueChange={setPast}
+                          minimumTrackTintColor={C.green}
+                          maximumTrackTintColor={C.line}
+                          thumbTintColor={C.green}
+                        />
+                        <Text style={s.sliderLabel}>Present</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={s.arStatus}>
+                      <View style={s.liveDot} />
+                      <Text style={s.liveText}>
+                        {demoTree
+                          ? 'Tree demo'
+                          : campusTarget
+                            ? campusTarget.title
+                            : geo.spot
+                              ? 'Saved location'
+                              : nativeAR
+                                ? 'Surface AR'
+                                : camera
+                                  ? 'Live camera'
+                                  : 'Demo scene'}{' '}
+                        ·{' '}
+                        {targetStory
+                          ? visited.includes(targetStory.id)
+                            ? 1
+                            : 0
+                          : visited.filter((id) => stops.some((stop) => stop.id === id)).length}
+                        /{targetStory ? 1 : stops.length} stories explored
+                      </Text>
+                    </View>
+                  )}
+                  {mode === 'scan' && !selected ? (
+                    <View style={s.scanControls}>
+                      <RoundButton icon="mapLight" label="Open site map" dark onPress={openMap} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Scan site and reconstruct"
+                        onPress={() => changeMode('reconstruct')}
+                        style={s.scanButton}
+                      >
+                        <View style={s.scanInner} />
+                      </Pressable>
+                      <RoundButton
+                        icon="volume"
+                        label="Audio information"
+                        dark
+                        onPress={() => setPanel('help')}
+                      />
+                    </View>
+                  ) : (
+                    <View style={s.modes}>
+                      {(
+                        [
+                          { id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' },
+                          { id: 'compare', icon: 'compare', title: 'Compare' },
+                          { id: 'discover', icon: 'discover', title: 'Discover' },
+                        ] as const
+                      ).map((item) => (
+                        <Pressable
+                          key={item.id}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: mode === item.id }}
+                          onPress={() => changeMode(item.id)}
+                          style={[s.mode, mode === item.id && s.modeSelected]}
+                        >
+                          <Icon name={item.icon} />
+                          <Text
+                            style={[
+                              s.modeText,
+                              mode === item.id && { color: C.green, fontFamily: 'Inter_700Bold' },
+                            ]}
+                          >
+                            {item.title}
                           </Text>
                         </Pressable>
                       ))}
-                    </ScrollView>
-                    {!campusTarget && (
-                      <Button
-                        compact
-                        title={
-                          demoTree
-                            ? 'Place tree again'
-                            : geo.spot
-                              ? 'Show marker in front of me'
-                              : 'Place marker again'
-                        }
-                        dark
-                        secondary
-                        onPress={showMarker}
-                      />
-                    )}
-                  </View>
-                )}
-                {demoTree && !nativeAR && !selected && !layerPanel && (
-                  <Button compact dark secondary title="Place tree again" onPress={showMarker} />
-                )}
-                {!selected && !layerPanel && (
-                  <Button
-                    compact
-                    dark
-                    secondary
-                    title={demoTree ? 'Return to site markers' : 'Place demo tree'}
-                    onPress={demoTree ? enterAR : placeDemoTree}
-                  />
-                )}
-                {camera && !supportsSurfaceAR && (
-                  <Text
-                    style={{ color: 'white', textAlign: 'center', fontSize: 12, marginBottom: 8 }}
-                  >
-                    Surface AR needs the HistoryLens development build. Expo Go shows screen
-                    markers.
-                  </Text>
-                )}
-                {nativeAR && selected && !layerPanel && (
-                  <View style={{ gap: 10 }}>
-                    <Button
-                      compact
-                      title="Read full story"
-                      onPress={() => setFullScreenStory(true)}
-                    />
-                    <Button
-                      compact
-                      title="Close AR information"
-                      secondary
-                      dark
-                      onPress={dismissStory}
-                    />
-                  </View>
-                )}
-                {detail && !layerPanel && !nativeAR ? (
-                  <StoryCard
-                    detail={detail}
-                    speaking={speaking}
-                    stackActions={stackActions}
-                    onClose={dismissStory}
-                    onListen={listen}
-                    onExpand={() => setFullScreenStory(true)}
-                    onSources={() => setPanel('sources')}
-                  />
-                ) : mode === 'compare' ? (
-                  <View style={s.comparison}>
-                    <Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text>
-                    <View
-                      style={[
-                        s.sliderRow,
-                        stackActions && {
-                          flexDirection: 'column',
-                          borderRadius: 14,
-                          paddingVertical: 8,
-                        },
-                      ]}
-                    >
-                      <Text style={s.sliderLabel}>Past</Text>
-                      <Slider
-                        accessibilityLabel="Historical overlay opacity"
-                        accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }}
-                        style={
-                          stackActions ? { width: '100%', height: 44 } : { flex: 1, height: 44 }
-                        }
-                        minimumValue={0}
-                        maximumValue={100}
-                        value={past}
-                        onValueChange={setPast}
-                        minimumTrackTintColor={C.green}
-                        maximumTrackTintColor={C.line}
-                        thumbTintColor={C.green}
-                      />
-                      <Text style={s.sliderLabel}>Present</Text>
                     </View>
-                  </View>
-                ) : (
-                  <View style={s.arStatus}>
-                    <View style={s.liveDot} />
-                    <Text style={s.liveText}>
-                      {demoTree
-                        ? 'Tree demo'
-                        : campusTarget
-                          ? campusTarget.title
-                          : geo.spot
-                            ? 'Saved location'
-                            : nativeAR
-                              ? 'Surface AR'
-                              : camera
-                                ? 'Live camera'
-                                : 'Demo scene'}{' '}
-                      ·{' '}
-                      {targetStory
-                        ? visited.includes(targetStory.id)
-                          ? 1
-                          : 0
-                        : visited.filter((id) => stops.some((stop) => stop.id === id)).length}
-                      /{targetStory ? 1 : stops.length} stories explored
-                    </Text>
-                  </View>
-                )}
-                {mode === 'scan' && !selected ? (
-                  <View style={s.scanControls}>
-                    <RoundButton icon="mapLight" label="Open site map" dark onPress={openMap} />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Scan site and reconstruct"
-                      onPress={() => changeMode('reconstruct')}
-                      style={s.scanButton}
-                    >
-                      <View style={s.scanInner} />
+                  )}
+                  <View style={s.arTools}>
+                    <Pressable accessibilityRole="button" onPress={toggleCamera}>
+                      <Text style={s.toolText}>
+                        {uiPreview
+                          ? 'UI preview · demo scene'
+                          : camera
+                            ? 'Use demo scene'
+                            : 'Use live camera'}
+                      </Text>
                     </Pressable>
-                    <RoundButton
-                      icon="volume"
-                      label="Audio information"
-                      dark
-                      onPress={() => setPanel('help')}
-                    />
+                    <Pressable accessibilityRole="button" onPress={openMap}>
+                      <Text style={s.toolText}>Site map ↗</Text>
+                    </Pressable>
                   </View>
-                ) : (
-                  <View style={s.modes}>
-                    {(
-                      [
-                        { id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' },
-                        { id: 'compare', icon: 'compare', title: 'Compare' },
-                        { id: 'discover', icon: 'discover', title: 'Discover' },
-                      ] as const
-                    ).map((item) => (
-                      <Pressable
-                        key={item.id}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: mode === item.id }}
-                        onPress={() => changeMode(item.id)}
-                        style={[s.mode, mode === item.id && s.modeSelected]}
-                      >
-                        <Icon name={item.icon} />
-                        <Text
-                          style={[
-                            s.modeText,
-                            mode === item.id && { color: C.green, fontFamily: 'Inter_700Bold' },
-                          ]}
-                        >
-                          {item.title}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-                <View style={s.arTools}>
-                  <Pressable accessibilityRole="button" onPress={toggleCamera}>
-                    <Text style={s.toolText}>
-                      {uiPreview
-                        ? 'UI preview · demo scene'
-                        : camera
-                          ? 'Use demo scene'
-                          : 'Use live camera'}
-                    </Text>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" onPress={openMap}>
-                    <Text style={s.toolText}>Site map ↗</Text>
-                  </Pressable>
-                </View>
-              </>
+                </>
+              )
             }
           />
         </View>

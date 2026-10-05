@@ -130,6 +130,9 @@ test('tree demo works away from campus without creating or saving a GPS location
   fireEvent.press(screen.getByText('Place tree again'));
   expect(screen.getByTestId('campus-ar-session').props.revision).toBeGreaterThan(revision);
   act(() => screen.getByTestId('campus-ar-session').props.onSelect('demo-tree'));
+  expect(screen.getByTestId('ar-card-toolbar')).toBeTruthy();
+  expect(screen.queryByRole('tab', { name: 'Compare' })).toBeNull();
+  expect(screen.queryByText('Return to AR')).toBeNull();
   fireEvent.press(screen.getByText('Read full story'));
   expect(screen.getAllByText('this is a tree wow so cool i love trees').length).toBeGreaterThan(0);
   fireEvent.press(screen.getByText('Return to AR'));
