@@ -39,6 +39,8 @@ import AppPanel, { type Panel } from './screens/AppPanel';
 import HistoricalLayers from './components/HistoricalLayers';
 import StoryCard from './components/StoryCard';
 import StoryReader from './screens/StoryReader';
+import { campusPlaces, campusSpot, campusStory, type CampusPlace } from './mapPlaces';
+import { proximity } from './testLocation';
 const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
 type Screen = 'welcome' | 'site' | 'map' | 'ar';
 type Mode = 'scan' | 'reconstruct' | 'compare' | 'discover';
@@ -82,6 +84,7 @@ export default function HistoryLens() {
   const [markerGuide, setMarkerGuide] = useState<string | null>(null);
   const [previewSpot, setPreviewSpot] = useState<number | null>(null);
   const geo = useTestLocation((screen === 'ar' || screen === 'map') && foreground);
+  const [campusTarget, setCampusTarget] = useState<CampusPlace | null>(null);
   const [placementStop, setPlacementStop] = useState<StopId>('gun');
   const {
     speaking,
@@ -89,26 +92,65 @@ export default function HistoryLens() {
     toggle: toggleNarration,
   } = useNarration(screen === 'ar' && foreground);
   const grow = useRef(new Animated.Value(1)).current;
+  const targetSpot = campusTarget ? campusSpot(campusTarget) : geo.spot;
+  const targetStory = campusTarget ? campusStory(campusTarget) : geo.spot ? harvardTestStop : null;
+  const nearby =
+    targetSpot && geo.fix
+      ? proximity(
+          {
+            ...targetSpot,
+            latitude: targetSpot.placement?.latitude ?? targetSpot.latitude,
+            longitude: targetSpot.placement?.longitude ?? targetSpot.longitude,
+          },
+          geo.fix,
+        )
+      : null;
   const detail =
-    geo.spot && selected === 'gun' ? harvardTestStop : stops.find((stop) => stop.id === selected);
-  // Once a nearby spot unlocks in this exploration session, GPS drift or
-  // walking away must not remove an already placed world-space marker.
+    targetStory?.id === selected ? targetStory : stops.find((stop) => stop.id === selected);
   const locationUnlocked =
-    !geo.spot ||
-    geo.allowed ||
-    (screen === 'ar' && (unlockedSpot === geo.spot.savedAt || previewSpot === geo.spot.savedAt));
+    !targetSpot ||
+    nearby?.state === 'nearby' ||
+    (screen === 'ar' &&
+      (unlockedSpot === targetSpot.savedAt || previewSpot === targetSpot.savedAt));
   useEffect(() => {
     if (screen !== 'ar') {
       setUnlockedSpot(null);
       setPreviewSpot(null);
-    } else if (geo.spot && geo.nearby?.state === 'nearby') setUnlockedSpot(geo.spot.savedAt);
-  }, [screen, geo.spot?.savedAt, geo.nearby?.state, surfacePhase]);
+    } else if (targetSpot && nearby?.state === 'nearby') setUnlockedSpot(targetSpot.savedAt);
+  }, [screen, targetSpot?.savedAt, nearby?.state, surfacePhase]);
+  useEffect(() => {
+    if (
+      screen !== 'ar' ||
+      campusTarget ||
+      (geo.spot &&
+        (geo.allowed || unlockedSpot === geo.spot.savedAt || previewSpot === geo.spot.savedAt)) ||
+      !geo.fix
+    )
+      return;
+    const place = campusPlaces.find(
+      (place) => proximity(campusSpot(place), geo.fix!).state === 'nearby',
+    );
+    if (place) {
+      dismissStory();
+      setCampusTarget(place);
+      setPlacementRevision(0);
+    }
+  }, [
+    screen,
+    campusTarget?.id,
+    geo.fix,
+    geo.allowed,
+    geo.spot?.savedAt,
+    unlockedSpot,
+    previewSpot,
+  ]);
   const nativeAR = camera && !!permission?.granted && supportsSurfaceAR && foreground;
-  const placedStop = geo.spot ? harvardTestStop : stops.find((stop) => stop.id === placementStop)!;
+  const placedStop = targetStory || stops.find((stop) => stop.id === placementStop)!;
   const markerLayerVisible =
     enabled[placedStop.layer] && (placedStop.id !== 'keeper' || enabled.stories);
   const markerOpacity = mode === 'compare' ? past / 100 : 1;
   function showMarker() {
+    if (campusTarget) return;
     dismissStory();
     setEnabled((current) => ({
       ...current,
@@ -194,6 +236,8 @@ export default function HistoryLens() {
     if (detail) toggleNarration(detail.story);
   }
   const enterAR = () => {
+    setCampusTarget(null);
+    setPlacementStop((id) => (stops.some((stop) => stop.id === id) ? id : 'gun'));
     setPlacementRevision(0);
     setSelected(null);
     setMode('scan');
@@ -206,6 +250,7 @@ export default function HistoryLens() {
     Haptics.selectionAsync().catch(() => {});
   }
   function exploreFromMap() {
+    setCampusTarget(null);
     const id = geo.spot
       ? 'gun'
       : detail?.id || stops.find((stop) => !visited.includes(stop.id))?.id || 'gun';
@@ -214,6 +259,18 @@ export default function HistoryLens() {
     setMode(id === 'keeper' ? 'discover' : 'reconstruct');
     void enableCamera();
     openStop(id);
+  }
+
+  function exploreCampus(place: CampusPlace) {
+    setCampusTarget(place);
+    setSelected(null);
+    setLayerPanel(false);
+    setPlacementRevision(0);
+    setPlacementStop(place.id);
+    setMode('reconstruct');
+    setScreen('ar');
+    void geo.requestLocation();
+    void enableCamera();
   }
 
   const devControl = (
@@ -332,6 +389,7 @@ export default function HistoryLens() {
           onBack={back}
           onSelect={(id) => setSelected(id)}
           onExplore={exploreFromMap}
+          onExplorePlace={exploreCampus}
           onRequestLocation={() => void geo.requestLocation()}
           onAddLocation={() => setPanel('dev')}
         />
@@ -352,24 +410,27 @@ export default function HistoryLens() {
             <SurfaceARView
               onMarkerGuide={setMarkerGuide}
               locationFix={geo.fix}
-              onPlacementSaved={geo.savePlacement}
-              testSpot={geo.spot}
+              onPlacementSaved={campusTarget ? undefined : geo.savePlacement}
+              story={targetStory || undefined}
+              fixedLocation={!!campusTarget}
+              testSpot={targetSpot}
               saveRequest={anchorSaveRequest}
               restoreRequest={anchorRestoreRequest}
               onAnchorError={setAnchorError}
-              onAnchorSaved={geo.saveAnchor}
-              stopId={geo.spot ? 'gun' : placementStop}
+              onAnchorSaved={campusTarget ? undefined : geo.saveAnchor}
+              stopId={targetStory?.id || placementStop}
               speaking={speaking}
               onListen={listen}
               onExpand={() => setFullScreenStory(true)}
-              selected={selected === (geo.spot ? 'gun' : placementStop)}
+              selected={selected === (targetStory?.id || placementStop)}
               visible={locationUnlocked && markerLayerVisible}
               opacity={markerOpacity}
-              revision={placementRevision}
+              revision={campusTarget ? 0 : placementRevision}
               onSelect={openStop}
               onDismiss={dismissStory}
               onPhaseChange={(phase) => {
-                if (phase === 'globalPlaced') setPreviewSpot(geo.spot?.savedAt ?? null);
+                if (phase === 'globalPlaced' && !campusTarget)
+                  setPreviewSpot(geo.spot?.savedAt ?? null);
                 if (phase === 'globalRestored') setPreviewSpot(null);
                 setSurfacePhase(phase);
                 if (phase !== 'anchorError') setAnchorError('');
@@ -401,7 +462,7 @@ export default function HistoryLens() {
                   developer={devControl}
                   dark
                   title={
-                    geo.spot
+                    targetSpot
                       ? 'Explore in AR'
                       : selected
                         ? detail?.id === 'keeper'
@@ -439,30 +500,34 @@ export default function HistoryLens() {
                   {nativeAR ? (
                     <View style={s.hintCard}>
                       <Text accessibilityLiveRegion="polite" style={s.hintText}>
-                        {selected
-                          ? 'Card pinned where you opened it. Tap × to close.'
-                          : !markerLayerVisible
-                            ? 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
-                            : markerOpacity === 0
-                              ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
-                              : surfacePhase === 'anchorError'
-                                ? anchorError || surfaceInstructions.anchorError
-                                : [
-                                      'saving',
-                                      'resolving',
-                                      'aligning',
-                                      'saved',
-                                      'restored',
-                                      'globalWaiting',
-                                      'globalPlaced',
-                                      'globalSaved',
-                                      'globalRestored',
-                                    ].includes(surfacePhase)
-                                  ? surfaceInstructions[surfacePhase]
-                                  : geo.spot && !locationUnlocked
-                                    ? 'Return near your saved spot with a precise location reading to unlock the tile.'
-                                    : surfaceInstructions[surfacePhase]}
-                        {!selected && geo.spot && markerGuide ? `\n${markerGuide}` : ''}
+                        {campusTarget && !locationUnlocked
+                          ? `Go within 50 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
+                          : selected
+                            ? 'Card pinned where you opened it. Tap × to close.'
+                            : !markerLayerVisible
+                              ? campusTarget
+                                ? 'Marker hidden by Layers. Enable Structures to show it.'
+                                : 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
+                              : markerOpacity === 0
+                                ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
+                                : surfacePhase === 'anchorError'
+                                  ? anchorError || surfaceInstructions.anchorError
+                                  : [
+                                        'saving',
+                                        'resolving',
+                                        'aligning',
+                                        'saved',
+                                        'restored',
+                                        'globalWaiting',
+                                        'globalPlaced',
+                                        'globalSaved',
+                                        'globalRestored',
+                                      ].includes(surfacePhase)
+                                    ? surfaceInstructions[surfacePhase]
+                                    : geo.spot && !locationUnlocked
+                                      ? 'Return near your saved spot with a precise location reading to unlock the tile.'
+                                      : surfaceInstructions[surfacePhase]}
+                        {!selected && targetSpot && markerGuide ? `\n${markerGuide}` : ''}
                       </Text>
                     </View>
                   ) : mode === 'compare' ? (
@@ -471,9 +536,11 @@ export default function HistoryLens() {
                     <View style={s.hintCard}>
                       <Icon name="footsteps" />
                       <Text style={s.hintText}>
-                        {selected
-                          ? 'Tap another circle to keep exploring.'
-                          : 'Tap a red or blue circle to discover its story.'}
+                        {campusTarget && !locationUnlocked
+                          ? `Go within 50 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
+                          : selected
+                            ? 'Tap another circle to keep exploring.'
+                            : 'Tap a red or blue circle to discover its story.'}
                       </Text>
                     </View>
                   )}
@@ -494,10 +561,10 @@ export default function HistoryLens() {
                 {!nativeAR &&
                   !layerPanel &&
                   locationUnlocked &&
-                  stops
+                  (targetStory ? [targetStory] : stops)
                     .filter((stop) =>
-                      geo.spot
-                        ? stop.id === 'gun'
+                      targetStory
+                        ? true
                         : mode === 'scan'
                           ? stop.id !== 'keeper'
                           : mode === 'reconstruct'
@@ -520,7 +587,7 @@ export default function HistoryLens() {
                       >
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`Explore ${geo.spot ? harvardTestStop.title : stop.title}`}
+                          accessibilityLabel={`Explore ${stop.title}`}
                           accessibilityState={{ expanded: selected === stop.id }}
                           onPress={() => openStop(stop.id)}
                           style={[
@@ -531,25 +598,28 @@ export default function HistoryLens() {
                         >
                           <Text style={s.blockPlus}>{selected === stop.id ? '−' : '+'}</Text>
                         </Pressable>
-                        <Text style={s.blockLabel}>
-                          {geo.spot ? harvardTestStop.title : stop.title}
-                        </Text>
+                        <Text style={s.blockLabel}>{stop.title}</Text>
                       </Animated.View>
                     ))}
-                {!nativeAR && !layerPanel && !geo.spot && mode === 'discover' && enabled.photos && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Explore archival photograph"
-                    onPress={() => {
-                      openStop('signal');
-                      setPanel('sources');
-                    }}
-                    style={[s.archiveBlock, { width: markerWidth }]}
-                  >
-                    <Icon name="photos" />
-                    <Text style={s.blockLabel}>Archival photograph</Text>
-                  </Pressable>
-                )}
+                {!nativeAR &&
+                  !layerPanel &&
+                  !geo.spot &&
+                  !campusTarget &&
+                  mode === 'discover' &&
+                  enabled.photos && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Explore archival photograph"
+                      onPress={() => {
+                        openStop('signal');
+                        setPanel('sources');
+                      }}
+                      style={[s.archiveBlock, { width: markerWidth }]}
+                    >
+                      <Icon name="photos" />
+                      <Text style={s.blockLabel}>Archival photograph</Text>
+                    </Pressable>
+                  )}
                 {layerPanel && (
                   <HistoricalLayers
                     enabled={enabled}
@@ -561,17 +631,21 @@ export default function HistoryLens() {
             }
             footer={
               <>
-                {nativeAR && geo.spot?.placement && surfacePhase === 'anchorError' && (
-                  <Button
-                    compact
-                    title="Retry saved position"
-                    onPress={() => {
-                      setPlacementRevision(0);
-                      setAnchorRestoreRequest((value) => value + 1);
-                    }}
-                  />
-                )}
                 {nativeAR &&
+                  !campusTarget &&
+                  geo.spot?.placement &&
+                  surfacePhase === 'anchorError' && (
+                    <Button
+                      compact
+                      title="Retry saved position"
+                      onPress={() => {
+                        setPlacementRevision(0);
+                        setAnchorRestoreRequest((value) => value + 1);
+                      }}
+                    />
+                  )}
+                {nativeAR &&
+                  !campusTarget &&
                   geo.spot &&
                   (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && (
                     <Button
@@ -580,14 +654,14 @@ export default function HistoryLens() {
                       onPress={() => setAnchorSaveRequest((value) => value + 1)}
                     />
                   )}
-                {nativeAR && !selected && !layerPanel && (
+                {nativeAR && !selected && !layerPanel && (!campusTarget || locationUnlocked) && (
                   <View style={{ gap: 10, marginBottom: 12 }}>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={{ gap: 8 }}
                     >
-                      {(geo.spot ? [harvardTestStop] : stops).map((stop) => (
+                      {(targetStory ? [targetStory] : stops).map((stop) => (
                         <Pressable
                           key={stop.id}
                           accessibilityRole="button"
@@ -616,13 +690,15 @@ export default function HistoryLens() {
                         </Pressable>
                       ))}
                     </ScrollView>
-                    <Button
-                      compact
-                      title={geo.spot ? 'Show marker in front of me' : 'Place marker again'}
-                      dark
-                      secondary
-                      onPress={showMarker}
-                    />
+                    {!campusTarget && (
+                      <Button
+                        compact
+                        title={geo.spot ? 'Show marker in front of me' : 'Place marker again'}
+                        dark
+                        secondary
+                        onPress={showMarker}
+                      />
+                    )}
                   </View>
                 )}
                 {camera && !supportsSurfaceAR && (
@@ -694,15 +770,22 @@ export default function HistoryLens() {
                   <View style={s.arStatus}>
                     <View style={s.liveDot} />
                     <Text style={s.liveText}>
-                      {geo.spot
-                        ? 'Saved location'
-                        : nativeAR
-                          ? 'Surface AR'
-                          : camera
-                            ? 'Live camera'
-                            : 'Demo scene'}{' '}
-                      · {geo.spot ? (visited.includes('gun') ? 1 : 0) : visited.length}/
-                      {geo.spot ? 1 : stops.length} stories explored
+                      {campusTarget
+                        ? campusTarget.title
+                        : geo.spot
+                          ? 'Saved location'
+                          : nativeAR
+                            ? 'Surface AR'
+                            : camera
+                              ? 'Live camera'
+                              : 'Demo scene'}{' '}
+                      ·{' '}
+                      {targetStory
+                        ? visited.includes(targetStory.id)
+                          ? 1
+                          : 0
+                        : visited.filter((id) => stops.some((stop) => stop.id === id)).length}
+                      /{targetStory ? 1 : stops.length} stories explored
                     </Text>
                   </View>
                 )}

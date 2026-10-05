@@ -8,6 +8,7 @@ import useTestLocation from '../src/useTestLocation';
 import { harvardTestStop } from '../src/content';
 import ARInfoPanel, { storyPages } from '../src/components/ARInfoPanel';
 import { panelFacingRotation, readingPanelPose } from '../src/arPanelFacing';
+import { campusPlaces, campusSpot, campusStory } from '../src/mapPlaces';
 import { surfaceWorldPoint } from '../src/anchorPlacement';
 import type { SurfaceARProps } from '../src/SurfaceARView';
 jest.mock('@reactvision/react-viro', () => {
@@ -393,4 +394,85 @@ test('AR controls respond on contact once and keep decorative geometry out of hi
   expect(close).toHaveBeenCalledTimes(1);
   expect(view.getAllByTestId('quad').every((quad) => quad.props.ignoreEventHandling)).toBe(true);
   expect(view.getAllByTestId('text').every((text) => text.props.ignoreEventHandling)).toBe(true);
+});
+
+test.each(campusPlaces)(
+  'fixed campus circle $title uses its geotag, opens its own card, and stays fixed while walking',
+  (place) => {
+    const story = campusStory(place);
+    const spot = campusSpot(place);
+    const onSelect = jest.fn();
+    const app = {
+      ...appProps(),
+      testSpot: spot,
+      stopId: story.id,
+      story,
+      fixedLocation: true,
+      visible: true,
+      onSelect,
+      locationFix: { ...fix(), latitude: place.latitude - 0.0001, longitude: place.longitude },
+    };
+    const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+    fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+    const originalPoint = [...view.getAllByTestId('node')[0].props.position];
+    expect(originalPoint[2]).toBeCloseTo(3 - 11.11949, 3);
+    fireEvent(view.getByTestId('marker'), 'click');
+    expect(onSelect).toHaveBeenCalledWith(story.id);
+    expect(view.getAllByTestId('text').some((text) => text.props.text === place.title)).toBe(true);
+    view.rerender(
+      <GlobalPlacementScene
+        sceneNavigator={{
+          viroAppProps: {
+            ...app,
+            locationFix: { ...app.locationFix, latitude: place.latitude - 0.0002 },
+          },
+        }}
+      />,
+    );
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+      ...camera,
+      position: [4, 2, 3],
+    });
+    expect(view.getAllByTestId('node')[0].props.position).toEqual(originalPoint);
+    view.unmount();
+    const reopened = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+    fireEvent(reopened.getByTestId('scene'), 'trackingUpdated', 3);
+    fireEvent(reopened.getByTestId('scene'), 'cameraTransformUpdate', {
+      ...camera,
+      position: [10, 2, 20],
+    });
+    const reopenedPoint = reopened.getAllByTestId('node')[0].props.position;
+    expect(reopenedPoint[0]).toBeCloseTo(10);
+    expect(reopenedPoint[2]).toBeCloseTo(20 - 11.11949, 3);
+  },
+);
+
+test('fixed campus geotags wait until unlocked and never fall back to a camera preview', () => {
+  const place = campusPlaces[0];
+  const app = {
+    ...appProps(),
+    testSpot: campusSpot(place),
+    story: campusStory(place),
+    fixedLocation: true,
+    visible: false,
+    locationFix: fix(),
+  };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  expect(view.queryByTestId('marker')).toBeNull();
+  view.rerender(
+    <GlobalPlacementScene
+      sceneNavigator={{
+        viroAppProps: {
+          ...app,
+          visible: true,
+          locationFix: { ...fix(), latitude: place.latitude - 0.0001, longitude: place.longitude },
+        },
+      }}
+    />,
+  );
+  expect(view.getByTestId('marker')).toBeTruthy();
+  expect(view.getAllByTestId('node')[0].props.position[2]).toBeCloseTo(3 - 11.11949, 3);
 });

@@ -18,6 +18,7 @@ type Props = {
   onBack: () => void;
   onSelect: (id: StopId) => void;
   onExplore: () => void;
+  onExplorePlace: (place: CampusPlace) => void;
   onRequestLocation: () => void;
   onAddLocation: () => void;
 };
@@ -30,6 +31,7 @@ export default function SiteMapScreen({
   onBack,
   onSelect,
   onExplore,
+  onExplorePlace,
   onRequestLocation,
   onAddLocation,
 }: Props) {
@@ -76,6 +78,9 @@ export default function SiteMapScreen({
         {selectedPlace ? (
           <>
             <Text style={styles.title}>{selectedPlace.title}</Text>
+            <Text style={styles.badge}>
+              {visited.includes(selectedPlace.id) ? 'Explored' : 'Not explored yet'}
+            </Text>
             <Text style={styles.body}>{selectedPlace.description}</Text>
             {distance !== null && (
               <Text style={styles.badge}>
@@ -85,7 +90,13 @@ export default function SiteMapScreen({
               </Text>
             )}
             <Text style={styles.note}>Approximate location pin</Text>
-            <Button title="Walking directions" icon="route" onPress={() => void directions()} />
+            <Button title="Explore in AR" onPress={() => onExplorePlace(selectedPlace)} />
+            <Button
+              secondary
+              title="Walking directions"
+              icon="route"
+              onPress={() => void directions()}
+            />
             {directionsError ? (
               <Text accessibilityRole="alert" style={styles.body}>
                 {directionsError}

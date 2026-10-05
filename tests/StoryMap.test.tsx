@@ -44,6 +44,7 @@ const props = {
   onBack: jest.fn(),
   onSelect: jest.fn(),
   onExplore: jest.fn(),
+  onExplorePlace: jest.fn(),
   onRequestLocation: jest.fn(),
   onAddLocation: jest.fn(),
 };
@@ -112,6 +113,10 @@ test('both Harvard pins open their own location cards and courtyard directions',
   fireEvent(marker('quincy-house-courtyard'), 'press');
   expect(view.getByText('Quincy House courtyard')).toBeTruthy();
   expect(view.queryByText('Harvard Science Center')).toBeNull();
+  fireEvent.press(view.getByText('Explore in AR'));
+  expect(props.onExplorePlace).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'quincy-house-courtyard' }),
+  );
   fireEvent.press(view.getByText('Walking directions'));
   expect(open).toHaveBeenCalledWith(expect.stringContaining('42.37072,-71.1169'));
   fireEvent(marker('saved-story'), 'press');

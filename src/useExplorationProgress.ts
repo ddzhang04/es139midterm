@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { stops, type StopId } from './content';
+import { campusPlaces } from './mapPlaces';
 import { localStorage } from './localStorage';
 
 export const PROGRESS_KEY = 'historylens-progress';
@@ -13,7 +14,10 @@ export function parseProgress(raw: string | null): Progress {
     if (!data || typeof data !== 'object') return emptyProgress();
     const record = data as Record<string, unknown>;
     const visited = Array.isArray(record.visited)
-      ? record.visited.filter((id): id is StopId => stops.some((stop) => stop.id === id))
+      ? record.visited.filter(
+          (id): id is StopId =>
+            stops.some((stop) => stop.id === id) || campusPlaces.some((place) => place.id === id),
+        )
       : [];
     return { visited: [...new Set(visited)], saved: record.saved === true };
   } catch {

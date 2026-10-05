@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NativeModules, Platform, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import type { GlobalPlacement, LocationFix, PersistentAnchor, TestSpot } from './testLocation';
-import type { StopId } from './content';
+import type { StoryStop, StopId } from './content';
 
 export type SurfacePhase =
   | 'scanning'
@@ -23,6 +23,8 @@ export type SurfacePhase =
   | 'globalRestored';
 export type SurfaceARProps = {
   stopId: StopId;
+  story?: StoryStop;
+  fixedLocation?: boolean;
   testSpot?: TestSpot | null;
   locationFix?: LocationFix | null;
   onMarkerGuide?: (message: string | null) => void;

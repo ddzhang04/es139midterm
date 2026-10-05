@@ -84,3 +84,21 @@ test('a failed progress read does not immediately overwrite existing storage', a
   await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalled());
   await waitFor(() => expect(result.current.error).toBe(''));
 });
+
+test('campus exploration progress survives storage hydration independently of the test marker', async () => {
+  await AsyncStorage.setItem(
+    PROGRESS_KEY,
+    JSON.stringify({
+      visited: [
+        'harvard-science-center',
+        'quincy-house-courtyard',
+        'quincy-house-courtyard',
+        'unknown',
+      ],
+      saved: false,
+    }),
+  );
+  const { result } = renderHook(() => useExplorationProgress());
+  await waitFor(() => expect(result.current.loaded).toBe(true));
+  expect(result.current.visited).toEqual(['harvard-science-center', 'quincy-house-courtyard']);
+});

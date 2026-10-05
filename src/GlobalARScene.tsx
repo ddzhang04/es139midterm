@@ -38,7 +38,8 @@ export function GlobalPlacementScene(
   { sceneNavigator }: { sceneNavigator: Navigator } = {} as { sceneNavigator: Navigator },
 ) {
   const app = sceneNavigator.viroAppProps;
-  const selection = useARSelection(app, 'gun');
+  const story = app.story || harvardTestStop;
+  const selection = useARSelection(app, story.id);
   const facing = useARCameraPosition();
   const latest = useRef(app);
   latest.current = app;
@@ -68,7 +69,8 @@ export function GlobalPlacementScene(
       return;
     }
     if (position.current || !ready.current || !camera.current) return;
-    const saved = props.revision === 0 ? props.testSpot?.placement : null;
+    if (props.fixedLocation && !props.visible) return;
+    const saved = props.fixedLocation || props.revision === 0 ? props.testSpot?.placement : null;
     if (saved && !usableFix(props.locationFix)) return;
     const next: Vector3 = saved
       ? globalToWorld(saved, props.locationFix!, camera.current.position)
@@ -90,7 +92,7 @@ export function GlobalPlacementScene(
   }, [app.testSpot?.savedAt, app.revision, app.restoreRequest]);
   useEffect(() => {
     place();
-  }, [app.locationFix]);
+  }, [app.locationFix, app.visible]);
   useEffect(() => {
     if (
       !app.saveRequest ||
@@ -208,8 +210,8 @@ export function GlobalPlacementScene(
           />
           {selection.selected && (
             <ARInfoPanel
-              key={harvardTestStop.title}
-              detail={harvardTestStop}
+              key={story.id}
+              detail={story}
               onClose={selection.close}
               onListen={app.onListen}
               speaking={app.speaking}

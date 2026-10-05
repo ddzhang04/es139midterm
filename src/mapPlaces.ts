@@ -1,6 +1,7 @@
-import type { Point } from './testLocation';
+import type { StoryStop } from './content';
+import type { Point, TestSpot } from './testLocation';
 export type CampusPlace = Point & {
-  id: string;
+  id: 'harvard-science-center' | 'quincy-house-courtyard';
   title: string;
   description: string;
   source: string;
@@ -31,3 +32,42 @@ export const harvardMapRegion = {
   latitudeDelta: 0.012,
   longitudeDelta: 0.008,
 };
+
+export function campusStory(place: CampusPlace): StoryStop {
+  return {
+    id: place.id,
+    title: place.title,
+    category: 'Harvard campus',
+    year: 'Campus',
+    color: '#E75049',
+    layer: 'structures',
+    x: 0.5,
+    y: 0.5,
+    description: place.description,
+    story:
+      place.id === 'harvard-science-center'
+        ? 'The Science Center at 1 Oxford Street supports teaching and research in Harvard’s Faculty of Arts and Sciences. This campus landmark brings students, classrooms, and academic facilities together just north of Harvard Yard.'
+        : 'Quincy’s courtyard is a shared gathering space between New Quincy and Stone Hall. House events and student activities bring the community together here. This AR circle marks the courtyard as a place to discover stories about everyday campus life.',
+  };
+}
+export function campusSpot(place: CampusPlace): TestSpot {
+  const savedAt = place.id === 'harvard-science-center' ? 1 : 2;
+  return {
+    name: place.title,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    radius: 50,
+    savedAt,
+    placement: {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      altitude: null,
+      altitudeReference: 'WGS84',
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      savedAt,
+      horizontalAccuracy: 20,
+      altitudeAccuracy: null,
+    },
+  };
+}
