@@ -87,7 +87,7 @@ test('round anchored marker opens a world-space rectangle and reposition resets 
       .getAllByTestId('node')
       .some((node) => node.props.rotation && node.props.highAccuracyEvents === false),
   ).toBe(true);
-  const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.49)!;
+  const close = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 0.58)!;
   fireEvent(close.findByProps({ testID: 'button-target' }), 'click');
   expect(app.onDismiss).toHaveBeenCalled();
   mockAnchors.reset.mockClear();

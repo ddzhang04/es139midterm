@@ -231,14 +231,14 @@ test('red box expands a world-space information panel with story pages, audio, a
   );
   const text = (value: string) =>
     view.getAllByTestId('text').find((item) => item.props.text === value);
-  const buttonAt = (x: number, y = -0.36) =>
+  const buttonAt = (x: number, y = -0.4) =>
     view
       .getAllByTestId('node')
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
       .findByProps({ testID: 'button-target' });
   expect(text(harvardTestStop.title)).toBeTruthy();
   expect(text(harvardTestStop.description)).toBeTruthy();
-  fireEvent(buttonAt(0, -0.49), 'click');
+  fireEvent(buttonAt(0, -0.6), 'click');
   expect(app.onExpand).toHaveBeenCalledTimes(1);
   const panel = view.getAllByTestId('node')[1];
   [0, -0.1, 0].forEach((v, i) => expect(panel.props.position[i]).toBeCloseTo(v));
@@ -248,18 +248,18 @@ test('red box expands a world-space information panel with story pages, audio, a
   );
   const pages = storyPages(harvardTestStop.story);
   for (const page of pages) {
-    fireEvent(buttonAt(0.34), 'click');
+    fireEvent(buttonAt(0.41), 'click');
     expect(text(page)).toBeTruthy();
   }
   expect(pages.join(' ')).toBe(harvardTestStop.story);
   expect(text('Next')).toBeUndefined();
-  fireEvent(buttonAt(-0.34), 'click');
+  fireEvent(buttonAt(-0.41), 'click');
   expect(text('Next')).toBeTruthy();
   fireEvent(buttonAt(0), 'click');
   expect(app.onListen).toHaveBeenCalledTimes(1);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', { ...camera, position: [4, 2, 3] });
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 2, 1]);
-  fireEvent(buttonAt(0.49, 0.4), 'click');
+  fireEvent(buttonAt(0.58, 0.6), 'click');
   expect(app.onDismiss).toHaveBeenCalledTimes(1);
   expect(view.getByTestId('marker').props.visible).toBe(true);
   expect(text(harvardTestStop.title)).toBeUndefined();
@@ -373,25 +373,25 @@ test('AR controls respond on contact once and keep decorative geometry out of hi
   const view = render(
     <ARInfoPanel detail={harvardTestStop} onClose={close} onListen={listen} onExpand={expand} />,
   );
-  const target = (x: number, y = -0.36) =>
+  const target = (x: number, y = -0.4) =>
     view
       .getAllByTestId('node')
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
       .findByProps({ testID: 'button-target' });
-  const gesture = (x: number, y = -0.36) => {
+  const gesture = (x: number, y = -0.4) => {
     fireEvent(target(x, y), 'clickState', 1);
     fireEvent(target(x, y), 'clickState', 2);
     fireEvent(target(x, y), 'clickState', 3);
     fireEvent(target(x, y), 'click');
   };
-  gesture(0.34);
+  gesture(0.41);
   const firstStoryPage = storyPages(harvardTestStop.story)[0];
   expect(view.getAllByTestId('text').some((text) => text.props.text === firstStoryPage)).toBe(true);
   gesture(0);
   expect(listen).toHaveBeenCalledTimes(1);
-  gesture(0, -0.49);
+  gesture(0, -0.6);
   expect(expand).toHaveBeenCalledTimes(1);
-  gesture(0.49, 0.4);
+  gesture(0.58, 0.6);
   expect(close).toHaveBeenCalledTimes(1);
   expect(view.getAllByTestId('quad').every((quad) => quad.props.ignoreEventHandling)).toBe(true);
   expect(view.getAllByTestId('text').every((text) => text.props.ignoreEventHandling)).toBe(true);
@@ -535,14 +535,14 @@ test('tree stays visible with its message pinned beside it after tapping', () =>
       .getAllByTestId('text')
       .some((text) => text.props.text === 'this is a tree wow so cool i love trees'),
   ).toBe(true);
-  const card = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 1.35)!;
-  expect(card.props.position).toEqual([1.35, 0, 0]);
+  const card = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 1.5)!;
+  expect(card.props.position).toEqual([1.5, 0, 0]);
   expect(card.props.rotation).toEqual([0, 0, 0]);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
     ...camera,
     position: [8, 4, 9],
     forward: [1, 0, 0],
   });
-  expect(card.props.position).toEqual([1.35, 0, 0]);
+  expect(card.props.position).toEqual([1.5, 0, 0]);
   expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 1.7, 1]);
 });

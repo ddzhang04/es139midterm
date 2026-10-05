@@ -77,9 +77,9 @@ export function storyPages(text: string): string[] {
 function ARButton({
   label,
   x,
-  y = -0.36,
-  width = 0.28,
-  height = 0.12,
+  y = -0.4,
+  width = 0.34,
+  height = 0.13,
   fontSize = 5,
   onPress,
 }: {
@@ -119,7 +119,7 @@ function ARButton({
       />
       <ARText
         text={label}
-        textClipMode="None"
+        textClipMode="ClipToBounds"
         width={width - 0.02}
         height={height - 0.02}
         position={[0, 0, 0.025]}
@@ -175,22 +175,23 @@ export default function ARInfoPanel({
   const index = Math.min(page, pages.length - 1);
   return (
     <ViroNode position={lockedPosition} rotation={lockedRotation} highAccuracyEvents={false}>
+      {/* 12 cm content padding, with distinct header, body and action rows. */}
       <ViroQuad
-        width={1.12}
-        height={onExpand ? 1.16 : 0.96}
+        width={1.4}
+        height={1.5}
         renderingOrder={10}
         materials={['ARInfoBackground']}
         ignoreEventHandling
       />
       <ARText
         text={`${detail.category.toUpperCase()} · ${detail.year}`}
-        width={0.84}
+        width={0.93}
         height={0.1}
-        position={[-0.045, 0.435, 0.03]}
+        position={[-0.115, 0.6, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#6D4817',
-          fontSize: 6,
+          fontSize: 5,
           textAlign: 'left',
           textAlignVertical: 'center',
         }}
@@ -198,24 +199,24 @@ export default function ARInfoPanel({
       />
       <ARText
         text={detail.title}
-        width={0.92}
-        height={0.22}
-        position={[0, 0.27, 0.03]}
+        width={1.16}
+        height={0.26}
+        position={[0, 0.39, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
-          fontSize: 8.5,
+          fontSize: 7.5,
           fontWeight: 'bold',
           textAlign: 'left',
-          textAlignVertical: 'center',
+          textAlignVertical: 'top',
         }}
         ignoreEventHandling
       />
       <ARText
         text={pages[index]}
-        width={0.92}
-        height={0.36}
-        position={[0, -0.025, 0.03]}
+        width={1.16}
+        height={0.4}
+        position={[0, 0.02, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
@@ -229,7 +230,7 @@ export default function ARInfoPanel({
         text={`${index + 1} / ${pages.length}`}
         width={0.18}
         height={0.09}
-        position={[0, -0.265, 0.03]}
+        position={[0, -0.25, 0.03]}
         style={{
           fontFamily: 'Arial',
           color: '#172521',
@@ -241,20 +242,20 @@ export default function ARInfoPanel({
       />
       <ARButton
         label="×"
-        x={0.49}
-        y={0.4}
-        width={0.11}
-        height={0.11}
+        x={0.58}
+        y={0.6}
+        width={0.13}
+        height={0.13}
         fontSize={6}
         onPress={onClose}
       />
-      {index > 0 && <ARButton label="Back" x={-0.34} onPress={() => setPage(index - 1)} />}
+      {index > 0 && <ARButton label="Back" x={-0.41} onPress={() => setPage(index - 1)} />}
       {onListen && <ARButton label={speaking ? 'Stop' : 'Listen'} x={0} onPress={onListen} />}
       {index < pages.length - 1 && (
-        <ARButton label="Next" x={0.34} onPress={() => setPage(index + 1)} />
+        <ARButton label="Next" x={0.41} onPress={() => setPage(index + 1)} />
       )}
       {onExpand && (
-        <ARButton label="Read full screen" x={0} y={-0.49} width={0.92} onPress={onExpand} />
+        <ARButton label="Read full screen" x={0} y={-0.6} width={1.16} onPress={onExpand} />
       )}
     </ViroNode>
   );

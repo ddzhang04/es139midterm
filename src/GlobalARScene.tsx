@@ -54,7 +54,7 @@ export function GlobalPlacementScene(
   const generation = useRef(0);
   const mounted = useRef(true);
   const phase = useRef<'globalPlaced' | 'globalRestored' | 'globalSaved'>('globalPlaced');
-  const [treePanelPosition, setTreePanelPosition] = useState<Vector3>([1.35, 0, 0]);
+  const [treePanelPosition, setTreePanelPosition] = useState<Vector3>([1.5, 0, 0]);
   const [treeRotation, setTreeRotation] = useState<Vector3>([0, 0, 0]);
   const [point, setPoint] = useState<Vector3 | null>(null);
   useEffect(() => {
@@ -91,7 +91,7 @@ export function GlobalPlacementScene(
       next[0] = camera.current.position[0] + direction[0] * 2;
       next[1] = camera.current.position[1] - 0.3;
       next[2] = camera.current.position[2] + direction[2] * 2;
-      setTreePanelPosition([-direction[2] * 1.35, 0, direction[0] * 1.35]);
+      setTreePanelPosition([-direction[2] * 1.5, 0, direction[0] * 1.5]);
       setTreeRotation(panelFacingRotation(camera.current.position, next, [0, 0, 0]));
     }
     position.current = next;
