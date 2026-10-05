@@ -61,7 +61,7 @@ test('native map uses the saved AR coordinates and a real location dot, not demo
     longitude: -71.1169,
   });
   const pins = view.getAllByTestId('map-marker');
-  expect(pins).toHaveLength(4);
+  expect(pins).toHaveLength(5);
   const story = pins.find((pin) => pin.props.identifier === 'saved-story')!;
   expect(story.props.coordinate).toMatchObject({ latitude: 42.3745, longitude: -71.1169 });
   fireEvent(story, 'press');
@@ -88,7 +88,7 @@ test('GPS updates do not steal map gestures, and locate explicitly recenters', (
 
 test('campus pins remain available without a saved spot or precise GPS', () => {
   const view = render(<SiteMapScreen {...props} fix={{ ...fix(), accuracy: 100 }} />);
-  expect(view.queryAllByTestId('map-marker')).toHaveLength(2);
+  expect(view.queryAllByTestId('map-marker')).toHaveLength(3);
   fireEvent.press(view.getByLabelText('Center map on my location'));
   expect(props.onRequestLocation).toHaveBeenCalledTimes(1);
   fireEvent.press(view.getByText('Add a saved location'));
@@ -122,4 +122,20 @@ test('both Harvard pins open their own location cards and courtyard directions',
   fireEvent(marker('saved-story'), 'press');
   expect(view.getByText('Old Town Hall')).toBeTruthy();
   expect(view.getByText('Explore in AR')).toBeTruthy();
+});
+
+test('Malkin map pin opens its own AR route and walking directions', () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const view = render(<SiteMapScreen {...props} />);
+  const pin = view
+    .getAllByTestId('map-marker')
+    .find((pin) => pin.props.identifier === 'malkin-athletic-center')!;
+  fireEvent(pin, 'press');
+  expect(view.getByText('Malkin Athletic Center')).toBeTruthy();
+  fireEvent.press(view.getByText('Explore in AR'));
+  expect(props.onExplorePlace).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'malkin-athletic-center' }),
+  );
+  fireEvent.press(view.getByText('Walking directions'));
+  expect(open).toHaveBeenCalledWith(expect.stringContaining('42.37135,-71.11938'));
 });

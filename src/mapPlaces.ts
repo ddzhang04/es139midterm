@@ -1,7 +1,7 @@
 import type { StoryStop } from './content';
 import type { Point, TestSpot } from './testLocation';
 export type CampusPlace = Point & {
-  id: 'harvard-science-center' | 'quincy-house-courtyard';
+  id: 'harvard-science-center' | 'quincy-house-courtyard' | 'malkin-athletic-center';
   title: string;
   description: string;
   source: string;
@@ -25,6 +25,14 @@ export const campusPlaces: CampusPlace[] = [
     description: 'The courtyard between New Quincy and Stone Hall at Quincy House.',
     source: 'https://quincy.harvard.edu/quincy-courtyard',
   },
+  {
+    id: 'malkin-athletic-center',
+    title: 'Malkin Athletic Center',
+    latitude: 42.37135,
+    longitude: -71.11938,
+    description: 'Harvard’s athletic and recreation center at 39 Holyoke Street.',
+    source: 'https://gocrimson.com/sports/2020/5/5/information-facilities-malkin.aspx',
+  },
 ];
 export const harvardMapRegion = {
   latitude: 42.37356,
@@ -47,11 +55,17 @@ export function campusStory(place: CampusPlace): StoryStop {
     story:
       place.id === 'harvard-science-center'
         ? 'The Science Center at 1 Oxford Street supports teaching and research in Harvard’s Faculty of Arts and Sciences. This campus landmark brings students, classrooms, and academic facilities together just north of Harvard Yard.'
-        : 'Quincy’s courtyard is a shared gathering space between New Quincy and Stone Hall. House events and student activities bring the community together here. This AR circle marks the courtyard as a place to discover stories about everyday campus life.',
+        : place.id === 'malkin-athletic-center'
+          ? 'The Malkin Athletic Center at 39 Holyoke Street supports recreation and varsity athletics at Harvard. Its facilities include swimming pools, fitness spaces, and courts. The MAC is home to Harvard fencing, volleyball, and wrestling, bringing training and campus recreation together in one building.'
+          : 'Quincy’s courtyard is a shared gathering space between New Quincy and Stone Hall. House events and student activities bring the community together here. This AR circle marks the courtyard as a place to discover stories about everyday campus life.',
   };
 }
 export function campusSpot(place: CampusPlace): TestSpot {
-  const savedAt = place.id === 'harvard-science-center' ? 1 : 2;
+  const savedAt = {
+    'harvard-science-center': 1,
+    'quincy-house-courtyard': 2,
+    'malkin-athletic-center': 3,
+  }[place.id];
   return {
     name: place.title,
     latitude: place.latitude,

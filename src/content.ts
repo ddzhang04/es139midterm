@@ -1,5 +1,11 @@
 export type StopId =
-  'gun' | 'quarters' | 'signal' | 'keeper' | 'harvard-science-center' | 'quincy-house-courtyard';
+  | 'gun'
+  | 'quarters'
+  | 'signal'
+  | 'keeper'
+  | 'harvard-science-center'
+  | 'quincy-house-courtyard'
+  | 'malkin-athletic-center';
 export type LayerId = 'structures' | 'people' | 'equipment' | 'photos' | 'stories';
 export type StoryStop = {
   id: StopId;
