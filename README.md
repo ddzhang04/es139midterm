@@ -123,4 +123,4 @@ The dependency audit still reports upstream advisories in the Expo/Viro and deve
 
 ### Placeable doodle tree
 
-In Explore in AR, tap **Place demo tree** to place the transparent drawing two metres ahead. It stays upright and fixed in that session, independent of GPS. Tap it to read the demo card, **Place tree again** to move it, or **Return to site markers** to exit. This is a flat AR sprite, not a volumetric 3D model. It does not alter saved locations or persist across restarts. The camera/demo fallback shows the same asset but cannot provide world tracking.
+In Explore in AR, tap **Place demo tree** to place the transparent drawing two metres ahead. It stays upright and fixed in that session, independent of GPS. Tap it to open a window beside the still-visible tree saying “this is a tree wow so cool i love trees”. The window stays fixed beside the tree. Use **Place tree again** to move it, or **Return to site markers** to exit. This is a flat AR sprite, not a volumetric 3D model. It does not alter saved locations or persist across restarts. The camera/demo fallback shows the same asset but cannot provide world tracking.

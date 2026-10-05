@@ -131,7 +131,7 @@ test('tree demo works away from campus without creating or saving a GPS location
   expect(screen.getByTestId('campus-ar-session').props.revision).toBeGreaterThan(revision);
   act(() => screen.getByTestId('campus-ar-session').props.onSelect('demo-tree'));
   fireEvent.press(screen.getByText('Read full story'));
-  expect(screen.getByText(/This doodle tree is a playful placement demo/)).toBeTruthy();
+  expect(screen.getAllByText('this is a tree wow so cool i love trees').length).toBeGreaterThan(0);
   fireEvent.press(screen.getByText('Return to AR'));
   fireEvent.press(screen.getByText('Close AR information'));
   fireEvent.press(screen.getByText('Return to site markers'));

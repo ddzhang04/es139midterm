@@ -107,14 +107,13 @@ export const harvardTestStop: StoryStop = {
 
 export const treeDemoStory: StoryStop = {
   id: 'demo-tree',
-  title: 'Doodle tree',
+  title: 'Tree',
   category: 'Placeable demo',
   year: 'Demo',
   color: '#17BB21',
   layer: 'structures',
   x: 0.5,
   y: 0.4,
-  description: 'A deliberately bad tree drawing placed in your AR world.',
-  story:
-    'This doodle tree is a playful placement demo. It stays upright at the position where you placed it, so you can move around it. It is a flat transparent drawing, not a full 3D tree. Place it again to move it in front of you. Demo placement lasts for this AR session and does not change saved locations.',
+  description: 'this is a tree wow so cool i love trees',
+  story: 'this is a tree wow so cool i love trees',
 };

@@ -511,3 +511,38 @@ test('doodle tree places without GPS, remains upright and fixed while walking, a
   );
   expect(view.getByTestId('node').props.position).toEqual([6, 1.7, 3]);
 });
+
+test('tree stays visible with its message pinned beside it after tapping', () => {
+  const app: SurfaceARProps = {
+    ...appProps(),
+    demoTree: true,
+    story: treeDemoStory,
+    stopId: 'demo-tree',
+    testSpot: null,
+    locationFix: null,
+    revision: 1,
+  };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  fireEvent(view.getByTestId('tree-image'), 'click');
+  view.rerender(
+    <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
+  );
+  expect(view.getByTestId('tree-image')).toBeTruthy();
+  expect(
+    view
+      .getAllByTestId('text')
+      .some((text) => text.props.text === 'this is a tree wow so cool i love trees'),
+  ).toBe(true);
+  const card = view.getAllByTestId('node').find((node) => node.props.position?.[0] === 1.35)!;
+  expect(card.props.position).toEqual([1.35, 0, 0]);
+  expect(card.props.rotation).toEqual([0, 0, 0]);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+    ...camera,
+    position: [8, 4, 9],
+    forward: [1, 0, 0],
+  });
+  expect(card.props.position).toEqual([1.35, 0, 0]);
+  expect(view.getAllByTestId('node')[0].props.position).toEqual([1, 1.7, 1]);
+});

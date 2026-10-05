@@ -168,7 +168,10 @@ export default function ARInfoPanel({
   // Face the user once when opened, then keep the world-space orientation fixed.
   const [lockedRotation] = useState<Vector3>(() => [...rotation]);
   const [lockedPosition] = useState<Vector3>(() => [...position]);
-  const pages = [...storyPages(detail.description), ...storyPages(detail.story)];
+  const pages = [
+    ...storyPages(detail.description),
+    ...(detail.story === detail.description ? [] : storyPages(detail.story)),
+  ];
   const index = Math.min(page, pages.length - 1);
   return (
     <ViroNode position={lockedPosition} rotation={lockedRotation} highAccuracyEvents={false}>

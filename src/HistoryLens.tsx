@@ -532,7 +532,9 @@ export default function HistoryLens() {
                           : demoTree && !selected
                             ? 'Doodle tree placed in front of you. Move around it or tap it for details.'
                             : selected
-                              ? 'Card pinned where you opened it. Tap × to close.'
+                              ? demoTree
+                                ? 'Tree window open beside the tree. Tap × to close.'
+                                : 'Card pinned where you opened it. Tap × to close.'
                               : !markerLayerVisible
                                 ? campusTarget
                                   ? 'Marker hidden by Layers. Enable Structures to show it.'
