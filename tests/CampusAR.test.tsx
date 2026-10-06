@@ -82,7 +82,9 @@ test.each(campusPlaces)(
     );
     fireEvent.press(screen.getByLabelText('Go back'));
     fireEvent.press(screen.getByLabelText('Go back'));
-    fireEvent.press(screen.getByText('Start AR Experience'));
+    expect(screen.getByText('Story Map')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Go back'));
+    fireEvent.press(screen.getByText('Explore This Site'));
     await waitFor(() =>
       expect(screen.getByTestId('campus-ar-session').props.fixedLocation).toBe(false),
     );

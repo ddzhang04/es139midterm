@@ -1,9 +1,7 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import PlaceIllustration from '../components/PlaceIllustration';
-import { demoSite } from '../content';
-import { Button, Icon, Tag } from '../ui/primitives';
+import { ScrollView, Text, View } from 'react-native';
+import WelcomeCarousel from '../components/WelcomeCarousel';
+import { Button, Icon } from '../ui/primitives';
 import { styles as s } from '../ui/styles';
 
 type Props = {
@@ -24,33 +22,22 @@ export default function WelcomeScreen({
 }: Props) {
   return (
     <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-      <View
-        style={[
-          s.welcomeImage,
-          { height: Math.max(360, height * 0.485, insets.top + 170 * fontScale) },
-        ]}
-      >
-        <PlaceIllustration />
-        <LinearGradient
-          colors={['rgba(16,34,28,0.15)', 'rgba(16,34,28,0.1)', 'rgba(16,34,28,0.8)']}
-          locations={[0, 0.62, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[s.brand, { marginTop: insets.top + 24 }]}>
-          <View style={s.brandMark}>
-            <Icon name="eye" />
-          </View>
-          <Text style={s.brandName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-            <Text style={{ color: '#163A33' }}>Hi</Text>storyLens
-          </Text>
-          {developer}
+      <View style={[s.brand, { paddingTop: insets.top + 12, paddingBottom: 16 }]}>
+        <View style={s.brandMark}>
+          <Icon name="eye" />
         </View>
-        <View style={s.siteLabel}>
-          <Tag>{demoSite.label}</Tag>
-          <Text style={s.location}>Objects · places · people</Text>
-        </View>
+        <Text
+          style={[s.brandName, { color: '#163A33' }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          HistoryLens
+        </Text>
+        {developer}
       </View>
-      <View style={[s.welcomeContent, { minHeight: height * 0.515 - insets.bottom }]}>
+      <WelcomeCarousel height={Math.max(280, Math.min(380, height * 0.38), 180 * fontScale)} />
+      <View style={[s.welcomeContent, { paddingTop: 12, paddingBottom: insets.bottom + 24 }]}>
         <View>
           <Text accessibilityRole="header" style={s.headline}>
             Discover the stories hidden around you.
@@ -58,10 +45,6 @@ export default function WelcomeScreen({
           <Text style={s.welcomeCopy}>
             Explore the places around you through local stories, historical records, and augmented
             reality.
-          </Text>
-          <Text style={s.note}>
-            Try the sample experience, or save a test location in DEV. Example stories are
-            illustrative.
           </Text>
         </View>
         <View style={s.actions}>

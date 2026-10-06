@@ -34,7 +34,6 @@ import { Button, Header, Icon, RoundButton, Tag } from './ui/primitives';
 import { styles as s } from './ui/styles';
 import { colors as C } from './ui/theme';
 import WelcomeScreen from './screens/WelcomeScreen';
-import SiteOverviewScreen from './screens/SiteOverviewScreen';
 import SiteMapScreen from './screens/SiteMapScreen';
 import AppPanel, { type Panel } from './screens/AppPanel';
 import HistoricalLayers from './components/HistoricalLayers';
@@ -43,7 +42,7 @@ import StoryReader from './screens/StoryReader';
 import { campusPlaces, campusSpot, campusStory, type CampusPlace } from './mapPlaces';
 import { proximity } from './testLocation';
 const uiPreview = Constants.expoConfig?.extra?.uiPreview === true;
-type Screen = 'welcome' | 'site' | 'map' | 'ar';
+type Screen = 'welcome' | 'map' | 'ar';
 type Mode = 'scan' | 'reconstruct' | 'compare' | 'discover';
 
 export default function HistoryLens() {
@@ -52,13 +51,14 @@ export default function HistoryLens() {
   const [arSize, setARSize] = useState<{ width: number; height: number } | null>(null);
   const [screen, setScreen] = useState<Screen>('welcome');
   const [mapFrom, setMapFrom] = useState<Screen>('welcome');
+  const [arFrom, setARFrom] = useState<'welcome' | 'map'>('welcome');
   const [mode, setMode] = useState<Mode>('scan');
   const [selected, setSelected] = useState<StopId | null>(null);
   const [fullScreenStory, setFullScreenStory] = useState(false);
   useEffect(() => {
     if (!selected || screen !== 'ar') setFullScreenStory(false);
   }, [selected, screen]);
-  const { visited, saved, visit, toggleSaved, error: progressError } = useExplorationProgress();
+  const { visited, visit, error: progressError } = useExplorationProgress();
   const [panel, setPanel] = useState<Panel>(null);
   const [layerPanel, setLayerPanel] = useState(false);
   const [enabled, setEnabled] = useState<Record<LayerId, boolean>>({
@@ -187,7 +187,7 @@ export default function HistoryLens() {
     if (selected) return setSelected(null);
     if (screen === 'ar') {
       disableCamera();
-      setScreen('site');
+      setScreen(arFrom);
     } else if (screen === 'map') setScreen(mapFrom);
     else setScreen('welcome');
   };
@@ -198,7 +198,7 @@ export default function HistoryLens() {
       return true;
     });
     return () => subscription.remove();
-  }, [screen, selected, panel, layerPanel, mapFrom, fullScreenStory]);
+  }, [screen, selected, panel, layerPanel, mapFrom, arFrom, fullScreenStory]);
   useEffect(() => {
     if (selected) {
       grow.setValue(1);
@@ -246,6 +246,7 @@ export default function HistoryLens() {
     if (detail) toggleNarration(detail.story);
   }
   const enterAR = () => {
+    setARFrom('welcome');
     setDemoTree(false);
     setCampusTarget(null);
     setPlacementStop((id) => (stops.some((stop) => stop.id === id) ? id : 'gun'));
@@ -256,11 +257,8 @@ export default function HistoryLens() {
     void enableCamera();
   };
 
-  function toggleBookmark() {
-    toggleSaved();
-    Haptics.selectionAsync().catch(() => {});
-  }
   function exploreFromMap() {
+    setARFrom('map');
     setDemoTree(false);
     setCampusTarget(null);
     const id = geo.spot
@@ -274,6 +272,7 @@ export default function HistoryLens() {
   }
 
   function exploreCampus(place: CampusPlace) {
+    setARFrom('map');
     setDemoTree(false);
     setCampusTarget(place);
     setSelected(null);
@@ -377,9 +376,7 @@ export default function HistoryLens() {
         },
       ]}
     >
-      <StatusBar
-        barStyle={screen === 'ar' || screen === 'welcome' ? 'light-content' : 'dark-content'}
-      />
+      <StatusBar barStyle={screen === 'ar' ? 'light-content' : 'dark-content'} />
       {screen === 'welcome' && (
         <WelcomeScreen
           height={height}
@@ -388,18 +385,6 @@ export default function HistoryLens() {
           developer={devControl}
           onExplore={enterAR}
           onOpenMap={openMap}
-        />
-      )}
-      {screen === 'site' && (
-        <SiteOverviewScreen
-          height={height}
-          insets={insets}
-          saved={saved}
-          developer={devControl}
-          onBack={back}
-          onToggleSaved={toggleBookmark}
-          onViewLand={() => setPanel('land')}
-          onExplore={enterAR}
         />
       )}
       {screen === 'map' && (
@@ -530,7 +515,7 @@ export default function HistoryLens() {
                         {campusTarget && !locationUnlocked
                           ? `Go within 50 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
                           : demoTree && !selected
-                            ? 'Doodle tree placed in front of you. Move around it or tap it for details.'
+                            ? '3D tree placed in front of you. Move around it or tap it for details.'
                             : selected
                               ? demoTree
                                 ? 'Tree window open beside the tree. Tap × to close.'

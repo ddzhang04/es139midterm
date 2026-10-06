@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, renderHook, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GlobalPlacementScene } from '../src/GlobalARScene';
+import NativeGlobalAR, { GlobalPlacementScene } from '../src/GlobalARScene';
 import { globalToWorld, markerDirection, worldToGlobal } from '../src/globalPlacement';
 import { parseSpot, TEST_SPOT_KEY } from '../src/testLocation';
 import useTestLocation from '../src/useTestLocation';
@@ -25,8 +25,9 @@ jest.mock('@reactvision/react-viro', () => {
         props,
       ),
     ViroQuad: component('quad'),
-    ViroImage: component('tree-image'),
-    ViroBox: component('button-target'),
+    ViroImage: component('tree-trunk'),
+    ViroBox: (props: { materials?: string[] }) =>
+      component(props.materials?.includes('TreeBark') ? 'tree-trunk' : 'button-target')(props),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
     ViroTrackingStateConstants: { TRACKING_NORMAL: 3 },
@@ -482,7 +483,15 @@ test('fixed campus geotags wait until unlocked and never fall back to a camera p
   expect(view.getAllByTestId('node')[0].props.position[2]).toBeCloseTo(3 - 11.11949, 3);
 });
 
-test('doodle tree places without GPS, remains upright and fixed while walking, and repositions on demand', () => {
+test('local tree avoids compass alignment while geotagged markers retain it', () => {
+  const app = appProps();
+  const view = render(<NativeGlobalAR {...app} demoTree />);
+  expect(view.getByTestId('navigator').props.worldAlignment).toBe('Gravity');
+  view.rerender(<NativeGlobalAR {...app} />);
+  expect(view.getByTestId('navigator').props.worldAlignment).toBe('GravityAndHeading');
+});
+
+test('3D tree places without GPS, remains upright and fixed while walking, and repositions on demand', () => {
   const app: SurfaceARProps = {
     ...appProps(),
     demoTree: true,
@@ -498,7 +507,7 @@ test('doodle tree places without GPS, remains upright and fixed while walking, a
     forward: [0, -0.8, -0.6],
   });
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
-  expect(view.getByTestId('tree-image').props.rotation).toEqual([0, 0, 0]);
+  expect(view.getAllByTestId('tree-trunk')[0].props.scale).toEqual([0.19, 0.85, 0.21]);
   expect(view.getByTestId('node').props.position).toEqual([1, 1.7, 1]);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
     ...camera,
@@ -506,8 +515,8 @@ test('doodle tree places without GPS, remains upright and fixed while walking, a
     forward: [1, 0, 0],
   });
   expect(view.getByTestId('node').props.position).toEqual([1, 1.7, 1]);
-  expect(view.getByTestId('tree-image').props.rotation).toEqual([0, 0, 0]);
-  fireEvent(view.getByTestId('tree-image'), 'click');
+  expect(view.getAllByTestId('tree-trunk')[0].props.scale).toEqual([0.19, 0.85, 0.21]);
+  fireEvent(view.getAllByTestId('tree-trunk')[0], 'click');
   expect(app.onSelect).toHaveBeenCalledWith('demo-tree');
   expect(app.onPlacementSaved).not.toHaveBeenCalled();
   view.rerender(
@@ -529,11 +538,11 @@ test('tree stays visible with its message pinned beside it after tapping', () =>
   const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
   fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
   fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
-  fireEvent(view.getByTestId('tree-image'), 'click');
+  fireEvent(view.getAllByTestId('tree-trunk')[0], 'click');
   view.rerender(
     <GlobalPlacementScene sceneNavigator={{ viroAppProps: { ...app, selected: true } }} />,
   );
-  expect(view.getByTestId('tree-image')).toBeTruthy();
+  expect(view.getAllByTestId('tree-trunk')[0]).toBeTruthy();
   expect(
     view
       .getAllByTestId('text')
@@ -573,4 +582,31 @@ test('opening-card release cannot expand it and each visible button needs its ow
   fireEvent(buttonAt(0.58, 0.6), 'clickState', 1);
   expect(close).toHaveBeenCalledTimes(1);
   expect(expand).toHaveBeenCalledTimes(1);
+});
+
+test('Next recovers from a missed release and click-only taps advance once', () => {
+  let now = 1000;
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  try {
+    const view = render(<ARInfoPanel detail={harvardTestStop} onClose={jest.fn()} />);
+    const next = () =>
+      view
+        .getAllByTestId('node')
+        .find((node) => node.props.position?.[0] === 0.41)!
+        .findByProps({ testID: 'button-target' });
+    const body = () =>
+      view.getAllByTestId('text').find((text) => text.props.position?.[1] === 0.02)!.props.text;
+    const pages = [harvardTestStop.description, ...storyPages(harvardTestStop.story)];
+    fireEvent(next(), 'clickState', 1);
+    expect(body()).toBe(pages[1]);
+    now += 800;
+    fireEvent(next(), 'clickState', 1);
+    fireEvent(next(), 'click');
+    expect(body()).toBe(pages[2]);
+    now += 800;
+    fireEvent(next(), 'click');
+    expect(body()).toBe(pages[3]);
+  } finally {
+    clock.mockRestore();
+  }
 });

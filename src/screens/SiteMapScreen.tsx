@@ -126,8 +126,7 @@ export default function SiteMapScreen({
           <>
             <Text style={styles.title}>Your map, your stories.</Text>
             <Text style={styles.body}>
-              Tap the Science Center or Quincy courtyard pin to view its location. You can also add
-              your own saved AR location.
+              Tap a pin to discover its stories, explore in AR, or get walking directions.
             </Text>
             <Button title="Add a saved location" onPress={onAddLocation} />
           </>

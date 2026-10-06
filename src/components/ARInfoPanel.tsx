@@ -72,7 +72,7 @@ function ARButton({
   x,
   y = -0.4,
   width = 0.34,
-  height = 0.13,
+  height = 0.18,
   fontSize = 5,
   onPress,
 }: {
@@ -87,18 +87,35 @@ function ARButton({
   const latestPress = useRef(onPress);
   latestPress.current = onPress;
   const pressed = useRef(false);
+  const lastPress = useRef(-Infinity);
+  const mountedAt = useRef(Date.now());
   const press = useCallback((state: ViroClickState) => {
-    if (state === 1 && !pressed.current) {
+    if (state === 1 && (!pressed.current || Date.now() - lastPress.current > 600)) {
       pressed.current = true;
+      lastPress.current = Date.now();
       latestPress.current();
     } else if (state === 2 || state === 3) {
       pressed.current = false;
     }
   }, []);
+  const click = useCallback(() => {
+    // Native hit testing may deliver click without clickState. Ignore the
+    // opening tap's release and any click following our own touch-down.
+    const now = Date.now();
+    if (now - mountedAt.current < 500 || now - lastPress.current < 600) return;
+    lastPress.current = now;
+    pressed.current = false;
+    latestPress.current();
+  }, []);
   // Require a fresh contact on this button. A release from the tap that
   // opened the card must never activate a newly mounted action underneath it.
   return (
-    <ViroNode position={[x, y, 0.012]}>
+    <ViroNode
+      position={[x, y, 0.012]}
+      highAccuracyEvents={false}
+      onClickState={press}
+      onClick={click}
+    >
       <ARText
         text={label}
         textClipMode="ClipToBounds"
@@ -121,8 +138,9 @@ function ARButton({
         position={[0, 0, 0]}
         materials={['ARInfoButton']}
         renderingOrder={11}
-        highAccuracyEvents
+        highAccuracyEvents={false}
         onClickState={press}
+        onClick={click}
       />
     </ViroNode>
   );

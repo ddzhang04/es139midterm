@@ -156,12 +156,11 @@ export default function AppPanel({
             ) : (
               <>
                 <Text style={s.body}>
-                  1. Open your camera and look for a marker. In test mode, save your current
-                  location from DEV and place a floating box.
+                  1. Choose a place on the map, then open AR and look around for a story marker.
                 </Text>
                 <Text style={s.body}>
-                  2. Tap the red or blue box to expand an information panel in AR. Tap × to return
-                  to the box.
+                  2. Tap a circle to read its story. Open it full screen for a closer look, or tap ×
+                  to return to exploring.
                 </Text>
                 <Text style={s.body}>
                   3. Reconstruct objects, compare past and present, or choose historical layers.
@@ -169,17 +168,12 @@ export default function AppPanel({
                 <View style={s.noteBox}>
                   <Text style={s.modalCopy}>
                     Red markers show objects and people. Blue markers show buildings and landmarks.
-                    Saved test markers use approximate global coordinates; surface markers use the
-                    detected surface. Use Place marker again to reposition. Expo Go and the demo
-                    scene use screen markers.
+                    Move your phone gently to explore the stories around you.
                   </Text>
                 </View>
               </>
             )}
-            <Button
-              title={panel === 'land' ? 'Return to Site Overview' : 'Continue Exploring'}
-              onPress={() => onClose()}
-            />
+            <Button title="Continue Exploring" onPress={() => onClose()} />
           </ScrollView>
         </View>
       </View>

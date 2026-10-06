@@ -1,6 +1,7 @@
 import useARSelection from './useARSelection';
 import { panelFacingRotation, readingPanelPose, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
+import ARTree from './components/ARTree';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import {
@@ -8,7 +9,6 @@ import {
   ViroARScene,
   ViroNode,
   ViroSphere,
-  ViroImage,
   ViroText,
   ViroMaterials,
   ViroTrackingStateConstants,
@@ -25,7 +25,6 @@ import {
 import { harvardTestStop } from './content';
 
 ViroMaterials.createMaterials({
-  DoodleTree: { lightingModel: 'Constant', cullMode: 'None' },
   GlobalMarkerRed: { diffuseColor: '#E75049', lightingModel: 'Constant' },
   GlobalMarkerTouch: {
     diffuseColor: '#FFFFFF',
@@ -203,18 +202,7 @@ export function GlobalPlacementScene(
             onClickState={selection.press}
             onClick={selection.open}
           />
-          {app.demoTree && (
-            <ViroImage
-              source={require('../assets/demos/doodle-tree.png')}
-              materials={['DoodleTree']}
-              width={1.25}
-              height={1.5}
-              rotation={treeRotation}
-              onClick={selection.open}
-              onClickState={selection.press}
-              highAccuracyEvents={false}
-            />
-          )}
+          {app.demoTree && <ARTree onOpen={selection.open} onPress={selection.press} />}
           <ViroSphere
             radius={0.24}
             materials={['GlobalMarkerRed']}
@@ -263,7 +251,9 @@ export default function NativeGlobalAR(props: SurfaceARProps) {
         style={{ flex: 1 }}
         initialScene={{ scene: GlobalPlacementScene }}
         viroAppProps={props}
-        worldAlignment="GravityAndHeading"
+        // A locally placed tree must not inherit compass corrections from
+        // geotagged markers. Its position belongs to this visual AR session.
+        worldAlignment={props.demoTree ? 'Gravity' : 'GravityAndHeading'}
         provider="none"
         autofocus
       />

@@ -102,25 +102,18 @@ test('saved map opens the actual story in AR without marking it explored on map 
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
   expect(screen.getAllByText('Old Town Hall').length).toBeGreaterThan(0);
   expect(screen.getByText(/A gathering place for town meetings/)).toBeTruthy();
+  fireEvent.press(screen.getByLabelText('Go back'));
+  fireEvent.press(screen.getByLabelText('Go back'));
+  expect(screen.getByText('Story Map')).toBeTruthy();
 });
 
-test('site bookmark persists and acknowledgment panel closes', async () => {
+test('leaving AR returns to home instead of an unrelated site overview', async () => {
   await start();
-  fireEvent.press(screen.getByText('Explore This Site'));
-  await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
+  await enterAR();
   fireEvent.press(screen.getByLabelText('Go back'));
-  fireEvent.press(screen.getByLabelText('Save site'));
-  expect(screen.getByText('Saved to your sites')).toBeTruthy();
-  await waitFor(() =>
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-      'historylens-progress',
-      expect.stringContaining('"saved":true'),
-    ),
-  );
-  fireEvent.press(screen.getByText('View Tribal Land Acknowledgment'));
-  expect(screen.getByText('Indigenous Lands & Living Communities')).toBeTruthy();
-  fireEvent.press(screen.getByText('Return to Site Overview'));
-  expect(screen.queryByText('Indigenous Lands & Living Communities')).toBeNull();
+  expect(screen.getByText('Discover the stories hidden around you.')).toBeTruthy();
+  expect(screen.queryByText('Site Overview')).toBeNull();
+  expect(screen.queryByTestId('native-camera')).toBeNull();
 });
 
 test('camera can switch to demo and back, and is released when leaving exploration', async () => {
@@ -134,7 +127,7 @@ test('camera can switch to demo and back, and is released when leaving explorati
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Go back'));
   expect(screen.queryByTestId('native-camera')).toBeNull();
-  fireEvent.press(screen.getByText('Start AR Experience'));
+  fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
 });
 
@@ -160,7 +153,7 @@ test('saved exploration progress is restored after reopening the app', async () 
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('native-camera')).toBeTruthy());
   fireEvent.press(screen.getByLabelText('Go back'));
-  expect(screen.getByLabelText('Unsave site')).toBeTruthy();
+  expect(screen.getByText('View Site Map')).toBeTruthy();
 });
 
 test('denied camera permission offers Settings and keeps the demo usable', async () => {
@@ -203,6 +196,6 @@ test('the general experience uses neutral site copy and an empty map until a pla
   expect(screen.getByText(/Discover the everyday objects/)).toBeTruthy();
   fireEvent.press(screen.getByText('Continue Exploring'));
   fireEvent.press(screen.getByLabelText('Go back'));
-  expect(screen.getByText('A place full of stories')).toBeTruthy();
+  expect(screen.getByText('Discover the stories hidden around you.')).toBeTruthy();
   expect(screen.queryByText(/0.6 mile|Paved route|COASTAL DEFENSE/)).toBeNull();
 });
