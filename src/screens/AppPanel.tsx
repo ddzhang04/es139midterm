@@ -5,6 +5,7 @@ import { Button, RoundButton } from '../ui/primitives';
 import { styles as s } from '../ui/styles';
 import type useTestLocation from '../useTestLocation';
 import { stops } from '../content';
+import StorySources from '../components/StorySources';
 
 export type Panel = 'help' | 'land' | 'sources' | 'dev' | null;
 type Props = {
@@ -19,6 +20,9 @@ type Props = {
   progressError: string;
   onClose: () => void;
   onReposition: () => void;
+  demoTree: boolean;
+  onPlaceTree: () => void;
+  onReturnToMarkers: () => void;
 };
 export default function AppPanel({
   panel,
@@ -32,6 +36,9 @@ export default function AppPanel({
   progressError,
   onClose,
   onReposition,
+  demoTree,
+  onPlaceTree,
+  onReturnToMarkers,
 }: Props) {
   return (
     <Modal
@@ -73,6 +80,20 @@ export default function AppPanel({
                   </Text>
                 )}
                 {locationControls}
+                <View style={s.noteBox}>
+                  <Text style={s.eyebrow}>AR DEMO</Text>
+                  <Text style={s.modalCopy}>
+                    Place a 3D tree to test movement and story interactions.
+                  </Text>
+                  <Button
+                    title={demoTree ? 'Place tree again' : 'Place demo tree'}
+                    secondary
+                    onPress={onPlaceTree}
+                  />
+                  {demoTree && (
+                    <Button title="Return to site markers" onPress={onReturnToMarkers} />
+                  )}
+                </View>
                 {geo.spot && (
                   <View style={s.noteBox}>
                     <Text style={s.eyebrow}>SAVED LOCATION</Text>
@@ -104,7 +125,9 @@ export default function AppPanel({
                     </Text>
                   </View>
                 )}
-                {nativeAR && <Button title="Reposition AR tile" secondary onPress={onReposition} />}
+                {nativeAR && !demoTree && (
+                  <Button title="Reposition AR tile" secondary onPress={onReposition} />
+                )}
               </>
             ) : panel === 'land' ? (
               <>
@@ -144,14 +167,18 @@ export default function AppPanel({
                   {detail?.story ||
                     'Explore a place through objects, buildings, landmarks, and personal stories.'}
                 </Text>
-                <View style={s.noteBox}>
-                  <Text style={s.eyebrow}>ILLUSTRATIVE CONTENT</Text>
-                  <Text style={s.modalCopy}>
-                    These sample stories illustrate the experience. A full experience would connect
-                    each story to verified archival records, photographs, and community
-                    contributions.
-                  </Text>
-                </View>
+                {detail?.sources?.length ? (
+                  <StorySources sources={detail.sources} />
+                ) : (
+                  <View style={s.noteBox}>
+                    <Text style={s.eyebrow}>ILLUSTRATIVE CONTENT</Text>
+                    <Text style={s.modalCopy}>
+                      These sample stories illustrate the experience. A full experience would
+                      connect each story to verified archival records, photographs, and community
+                      contributions.
+                    </Text>
+                  </View>
+                )}
               </>
             ) : (
               <>

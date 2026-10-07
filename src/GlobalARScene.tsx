@@ -2,7 +2,9 @@ import useARSelection from './useARSelection';
 import { panelFacingRotation, readingPanelPose, useARCameraPosition } from './arPanelFacing';
 import ARInfoPanel from './components/ARInfoPanel';
 import ARTree from './components/ARTree';
-import React, { useEffect, useRef, useState } from 'react';
+import CampusARMarkers from './components/CampusARMarkers';
+import { aimedObject, type ScanCandidate } from './objectScanning';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import {
   ViroARSceneNavigator,
@@ -46,7 +48,14 @@ export function GlobalPlacementScene(
   latest.current = app;
   const camera = useRef<ViroCameraTransform | null>(null);
   const ready = useRef(false);
+  const [trackingReady, setTrackingReady] = useState(false);
   const lastGuideTime = useRef(0);
+  const lastScanTime = useRef(0);
+  const campusScanCandidates = useRef<ScanCandidate[]>([]);
+  const receiveScanCandidates = useCallback((candidates: ScanCandidate[]) => {
+    campusScanCandidates.current = candidates;
+    if (candidates.length && ready.current) latest.current.onPhaseChange('globalRestored');
+  }, []);
   const position = useRef<Vector3 | null>(null);
   const pending = useRef(false);
   const failed = useRef(false);
@@ -62,6 +71,7 @@ export function GlobalPlacementScene(
       mounted.current = false;
       generation.current++;
       latest.current.onMarkerGuide?.(null);
+      latest.current.onScanTargetChange?.(null);
     };
   }, []);
   function place() {
@@ -72,6 +82,10 @@ export function GlobalPlacementScene(
       return;
     }
     if (position.current || !ready.current || !camera.current) return;
+    if (props.campusMarkers && ((!props.testSpot && props.revision === 0) || props.fixedLocation)) {
+      if (campusScanCandidates.current.length) props.onPhaseChange('globalRestored');
+      return;
+    }
     if (props.fixedLocation && !props.visible) return;
     const saved =
       !props.demoTree && (props.fixedLocation || props.revision === 0)
@@ -165,9 +179,12 @@ export function GlobalPlacementScene(
     <ViroARScene
       onTrackingUpdated={(state) => {
         ready.current = state === ViroTrackingStateConstants.TRACKING_NORMAL;
+        setTrackingReady(ready.current);
         if (failed.current) return;
-        if (!ready.current) app.onPhaseChange('limited');
-        else {
+        if (!ready.current) {
+          app.onPhaseChange('limited');
+          latest.current.onScanTargetChange?.(null);
+        } else {
           place();
           if (position.current && !pending.current) app.onPhaseChange(phase.current);
         }
@@ -176,12 +193,65 @@ export function GlobalPlacementScene(
         camera.current = transform;
         facing.update(transform.position);
         place();
-        if (position.current && Date.now() - lastGuideTime.current >= 500) {
+        if (Date.now() - lastScanTime.current >= 150) {
+          lastScanTime.current = Date.now();
+          const props = latest.current;
+          const candidates =
+            props.campusMarkersVisible && !props.demoTree ? [...campusScanCandidates.current] : [];
+          if (position.current && props.visible)
+            candidates.push({
+              id: props.demoTree ? 'demo-tree' : story.id,
+              storyId: story.id,
+              title: story.title,
+              position: position.current,
+            });
+          props.onScanTargetChange?.(
+            ready.current && !props.selectedStopId && props.opacity > 0
+              ? aimedObject(candidates, transform)
+              : null,
+          );
+        }
+        if (Date.now() - lastGuideTime.current >= 500) {
           lastGuideTime.current = Date.now();
-          latest.current.onMarkerGuide?.(markerDirection(position.current, transform));
+          const props = latest.current;
+          if (props.campusMarkers && !props.demoTree) {
+            const dots = campusScanCandidates.current.filter(
+              (item) => item.id !== 'science-center-camera',
+            );
+            const nearest =
+              dots.find((item) => item.id === props.stopId) ||
+              dots.reduce<ScanCandidate | null>((best, item) => {
+                const distance = (candidate: ScanCandidate) =>
+                  Math.hypot(
+                    ...candidate.position.map((value, index) => value - transform.position[index]),
+                  );
+                return !best || distance(item) < distance(best) ? item : best;
+              }, null);
+            props.onMarkerGuide?.(
+              !props.campusMarkersVisible
+                ? 'Story dots are hidden. Open Layers and enable Structures.'
+                : nearest
+                  ? `${nearest.title}: ${markerDirection(nearest.position, transform)}`
+                  : !usableFix(props.locationFix)
+                    ? props.locationFix?.accuracy != null && props.locationFix.accuracy > 30
+                      ? `GPS accuracy is ±${Math.round(props.locationFix.accuracy)} m. Waiting for a more precise location before placing dots.`
+                      : 'Waiting for a fresh, precise GPS location before placing story dots.'
+                    : 'Waiting for AR tracking before placing story dots.',
+            );
+          } else if (position.current) {
+            props.onMarkerGuide?.(markerDirection(position.current, transform));
+          }
         }
       }}
     >
+      {app.campusMarkers && !app.demoTree && (
+        <CampusARMarkers
+          app={app}
+          camera={camera.current}
+          ready={trackingReady}
+          onScanCandidates={receiveScanCandidates}
+        />
+      )}
       {point && (
         <ViroNode
           position={point}
@@ -231,6 +301,11 @@ export function GlobalPlacementScene(
             <ARInfoPanel
               key={story.id}
               detail={story}
+              parentPosition={point}
+              parentRotation={savedTransform?.rotation}
+              parentScale={savedTransform?.scale}
+              page={app.storyPage}
+              onPageChange={app.onStoryPageChange}
               onClose={selection.close}
               onListen={app.onListen}
               speaking={app.speaking}
@@ -255,6 +330,7 @@ export default function NativeGlobalAR(props: SurfaceARProps) {
         // geotagged markers. Its position belongs to this visual AR session.
         worldAlignment={props.demoTree ? 'Gravity' : 'GravityAndHeading'}
         provider="none"
+        occlusionMode="disabled"
         autofocus
       />
     </View>

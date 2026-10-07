@@ -25,7 +25,10 @@ jest.mock('@reactvision/react-viro', () => {
     }),
     ViroNode: component('node'),
     ViroQuad: component('quad'),
-    ViroBox: component('button-target'),
+    ViroBox: (props: { materials?: string[] }) =>
+      component(
+        props.materials?.includes('ARInfoButtonTouch') ? 'button-target' : 'button-background',
+      )(props),
     ViroSphere: component('marker'),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StoryStop } from '../content';
 import { Button, RoundButton } from '../ui/primitives';
 import { colors as C } from '../ui/theme';
+import StorySources from '../components/StorySources';
 
 export default function StoryReader({
   detail,
@@ -43,6 +44,7 @@ export default function StoryReader({
           <Text selectable style={styles.body}>
             {detail.story}
           </Text>
+          {!!detail.sources?.length && <StorySources sources={detail.sources} />}
           <Button title={speaking ? 'Stop listening' : 'Listen to story'} onPress={onListen} />
           <Button title="Return to AR" secondary onPress={onClose} />
         </ScrollView>

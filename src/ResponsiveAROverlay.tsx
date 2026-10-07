@@ -46,16 +46,18 @@ export default function ResponsiveAROverlay({
       >
         {scene}
       </View>
-      <ScrollView
-        testID="ar-controls"
-        style={[styles.footer, { maxHeight: budget.footerMaximum }]}
-        contentContainerStyle={styles.footerContent}
-        showsVerticalScrollIndicator
-        bounces={false}
-        nestedScrollEnabled
-      >
-        {footer}
-      </ScrollView>
+      {footer != null && (
+        <ScrollView
+          testID="ar-controls"
+          style={[styles.footer, { maxHeight: budget.footerMaximum }]}
+          contentContainerStyle={styles.footerContent}
+          showsVerticalScrollIndicator
+          bounces={false}
+          nestedScrollEnabled
+        >
+          {footer}
+        </ScrollView>
+      )}
     </View>
   );
 }

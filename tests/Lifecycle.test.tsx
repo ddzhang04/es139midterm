@@ -89,3 +89,19 @@ test('leaving exploration stops narration', () => {
   expect(result.current.speaking).toBe(false);
   expect(Speech.stop).toHaveBeenCalled();
 });
+
+test('Listen requests audible speech in a separate iOS session and reports playback errors', () => {
+  const { result } = renderHook(() => useNarration(true));
+  act(() => result.current.toggle('The Science Center opened in 1973.'));
+  expect(Speech.speak).toHaveBeenLastCalledWith(
+    'The Science Center opened in 1973.',
+    expect.objectContaining({ volume: 1, language: 'en-US', useApplicationAudioSession: false }),
+  );
+  const options = jest.mocked(Speech.speak).mock.calls.at(-1)![1]!;
+  act(() => options.onError?.(new Error('audio unavailable')));
+  expect(result.current.speaking).toBe(false);
+  expect(result.current.error).toContain('Audio could not start');
+  act(() => result.current.toggle('Try again'));
+  expect(result.current.error).toBe('');
+  expect(result.current.speaking).toBe(true);
+});

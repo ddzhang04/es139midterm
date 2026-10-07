@@ -30,6 +30,27 @@ beforeEach(async () => {
   jest.clearAllMocks();
 });
 
+test('entering campus AR from the generic map route does not select a sample story and hide all dots', async () => {
+  await AsyncStorage.setItem(
+    TEST_SPOT_KEY,
+    JSON.stringify({
+      name: 'Harvard test spot',
+      latitude: 42.3745,
+      longitude: -71.1169,
+      radius: 50,
+      savedAt: Date.now(),
+    }),
+  );
+  render(<App />);
+  await waitFor(() => expect(AsyncStorage.getItem).toHaveBeenCalledWith(TEST_SPOT_KEY));
+  fireEvent.press(screen.getByText('View Site Map'));
+  await waitFor(() => expect(screen.getByText('Explore in AR')).toBeTruthy());
+  fireEvent.press(screen.getByText('Explore in AR'));
+  await waitFor(() => expect(screen.getByTestId('campus-ar-session')).toBeTruthy());
+  expect(screen.getByTestId('campus-ar-session').props.selectedStopId).toBeNull();
+  expect(screen.getByTestId('campus-ar-session').props.campusMarkersVisible).toBe(true);
+});
+
 test.each(campusPlaces)(
   '$title map route unlocks only nearby and opens the correct AR card',
   async (place) => {
@@ -66,8 +87,20 @@ test.each(campusPlaces)(
     );
     await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.visible).toBe(true));
     act(() => screen.getByTestId('campus-ar-session').props.onSelect(place.id));
-    fireEvent.press(screen.getByText('Read full story'));
+    expect(screen.getByTestId('campus-ar-session').props.storyPage).toBe(0);
+    expect(screen.queryByTestId('ar-controls')).toBeNull();
+    act(() => screen.getByTestId('campus-ar-session').props.onStoryPageChange(1));
+    expect(screen.getByTestId('campus-ar-session').props.storyPage).toBe(1);
+    act(() => screen.getByTestId('campus-ar-session').props.onStoryPageChange(0));
+    expect(screen.getByTestId('campus-ar-session').props.storyPage).toBe(0);
+    act(() => screen.getByTestId('campus-ar-session').props.onStoryPageChange(2));
+    expect(screen.getByTestId('campus-ar-session').props.storyPage).toBe(2);
+    act(() => screen.getByTestId('campus-ar-session').props.onSelect(place.id));
+    expect(screen.getByTestId('campus-ar-session').props.storyPage).toBe(0);
+    act(() => screen.getByTestId('campus-ar-session').props.onExpand());
     expect(screen.getByText(campusStory(place).story)).toBeTruthy();
+    for (const source of campusStory(place).sources!)
+      expect(screen.getByText(`${source.title} ↗`)).toBeTruthy();
     fireEvent.press(screen.getByText('Return to AR'));
     act(() =>
       update({
@@ -92,7 +125,7 @@ test.each(campusPlaces)(
   },
 );
 
-test('opening AR near a campus site automatically discovers its circle without creating a test spot', async () => {
+test('nearby campus dots do not replace the active marker or its story', async () => {
   render(<App />);
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(Location.watchPositionAsync).toHaveBeenCalled());
@@ -111,7 +144,11 @@ test('opening AR near a campus site automatically discovers its circle without c
       timestamp: Date.now(),
     } as Location.LocationObject),
   );
-  await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.stopId).toBe(place.id));
+  expect(screen.getByTestId('campus-ar-session').props.stopId).toBe('gun');
+  expect(screen.getByTestId('campus-ar-session').props.campusMarkers).toBe(true);
+  act(() => screen.getByTestId('campus-ar-session').props.onSelect(place.id));
+  act(() => screen.getByTestId('campus-ar-session').props.onExpand());
+  expect(screen.getByText(campusStory(place).story)).toBeTruthy();
   expect(screen.getByTestId('campus-ar-session').props.visible).toBe(true);
   expect(await AsyncStorage.getItem(TEST_SPOT_KEY)).toBeNull();
 });
@@ -120,6 +157,8 @@ test('tree demo works away from campus without creating or saving a GPS location
   render(<App />);
   fireEvent.press(screen.getByText('Explore This Site'));
   await waitFor(() => expect(screen.getByTestId('campus-ar-session')).toBeTruthy());
+  expect(screen.queryByText('Place demo tree')).toBeNull();
+  fireEvent.press(screen.getByLabelText('Open developer settings'));
   fireEvent.press(screen.getByText('Place demo tree'));
   await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.demoTree).toBe(true));
   const props = screen.getByTestId('campus-ar-session').props;
@@ -129,17 +168,45 @@ test('tree demo works away from campus without creating or saving a GPS location
   expect(props.onPlacementSaved).toBeUndefined();
   expect(screen.queryByText('Save global position')).toBeNull();
   const revision = props.revision;
+  expect(screen.queryByText('Place tree again')).toBeNull();
+  fireEvent.press(screen.getByLabelText('Open developer settings'));
   fireEvent.press(screen.getByText('Place tree again'));
   expect(screen.getByTestId('campus-ar-session').props.revision).toBeGreaterThan(revision);
   act(() => screen.getByTestId('campus-ar-session').props.onSelect('demo-tree'));
-  expect(screen.getByTestId('ar-card-toolbar')).toBeTruthy();
+  expect(screen.queryByTestId('ar-controls')).toBeNull();
   expect(screen.queryByRole('tab', { name: 'Compare' })).toBeNull();
   expect(screen.queryByText('Return to AR')).toBeNull();
-  fireEvent.press(screen.getByText('Read full story'));
+  act(() => screen.getByTestId('campus-ar-session').props.onExpand());
   expect(screen.getAllByText('this is a tree wow so cool i love trees').length).toBeGreaterThan(0);
   fireEvent.press(screen.getByText('Return to AR'));
-  fireEvent.press(screen.getByText('Close AR information'));
+  act(() => screen.getByTestId('campus-ar-session').props.onDismiss());
+  fireEvent.press(screen.getByLabelText('Open developer settings'));
   fireEvent.press(screen.getByText('Return to site markers'));
   await waitFor(() => expect(screen.getByTestId('campus-ar-session').props.demoTree).toBe(false));
   expect(await AsyncStorage.getItem(TEST_SPOT_KEY)).toBeNull();
+});
+
+test('photographing a real landmark requires review before collecting its story', async () => {
+  render(<App />);
+  fireEvent.press(screen.getByText('Explore This Site'));
+  await waitFor(() => expect(screen.getByTestId('campus-ar-session')).toBeTruthy());
+  fireEvent.press(screen.getByText('Scan objects'));
+  expect(screen.queryByTestId('campus-ar-session')).toBeNull();
+  fireEvent.press(await screen.findByText(/Harvard Science Center ·/));
+  fireEvent(await screen.findByTestId('native-camera'), 'cameraReady');
+  fireEvent.press(screen.getByText('Take landmark photo'));
+  await screen.findByTestId('landmark-photo-preview');
+  expect(await AsyncStorage.getItem('historylens-object-collection')).toBeNull();
+  fireEvent.press(screen.getByText('Use photo & collect story'));
+  await waitFor(() =>
+    expect(screen.getByTestId('campus-ar-session').props.selectedStopId).toBe(
+      'harvard-science-center',
+    ),
+  );
+  await waitFor(async () =>
+    expect(await AsyncStorage.getItem('historylens-object-collection')).toBe(
+      '["harvard-science-center"]',
+    ),
+  );
+  expect(screen.getByText('Collected: Harvard Science Center')).toBeTruthy();
 });

@@ -13,6 +13,7 @@ function silence() {
 
 export default function useNarration(active: boolean) {
   const [speaking, setSpeaking] = useState(false);
+  const [error, setError] = useState('');
   const playing = useRef(false);
   const generation = useRef(0);
   const mounted = useRef(false);
@@ -37,11 +38,13 @@ export default function useNarration(active: boolean) {
   }
 
   function toggle(text: string) {
+    if (!active || !text.trim()) return;
     if (playing.current) {
       stop();
       return;
     }
     const operation = ++generation.current;
+    setError('');
     playing.current = true;
     setSpeaking(true);
     function finish() {
@@ -51,11 +54,28 @@ export default function useNarration(active: boolean) {
       }
     }
     try {
-      Speech.speak(text, { rate: 0.9, onDone: finish, onStopped: finish, onError: finish });
+      Speech.speak(text, {
+        rate: 0.9,
+        language: 'en-US',
+        volume: 1,
+        // Give speech its own system-managed session instead of inheriting
+        // the AR camera session's audio configuration on iOS.
+        useApplicationAudioSession: false,
+        onDone: finish,
+        onStopped: finish,
+        onError: () => {
+          if (mounted.current && operation === generation.current)
+            setError(
+              'Audio could not start. Check your volume and Silent Mode, then tap Listen again.',
+            );
+          finish();
+        },
+      });
     } catch {
+      setError('Audio could not start. Check your volume and Silent Mode, then tap Listen again.');
       finish();
     }
   }
 
-  return { speaking, stop, toggle };
+  return { speaking, error, stop, toggle };
 }

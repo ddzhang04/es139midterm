@@ -3,6 +3,7 @@ import { NativeModules, Platform, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import type { GlobalPlacement, LocationFix, PersistentAnchor, TestSpot } from './testLocation';
 import type { StoryStop, StopId } from './content';
+import type { ScanTarget } from './objectScanning';
 
 export type SurfacePhase =
   | 'scanning'
@@ -26,6 +27,12 @@ export type SurfaceARProps = {
   story?: StoryStop;
   fixedLocation?: boolean;
   demoTree?: boolean;
+  campusMarkers?: boolean;
+  campusMarkersVisible?: boolean;
+  selectedStopId?: StopId | null;
+  storyPage?: number;
+  onStoryPageChange?: (page: number) => void;
+  onScanTargetChange?: (target: ScanTarget | null) => void;
   testSpot?: TestSpot | null;
   locationFix?: LocationFix | null;
   onMarkerGuide?: (message: string | null) => void;
@@ -111,7 +118,9 @@ export default function SurfaceARView(props: SurfaceARProps) {
       </View>
     );
   const NativeSurfaceAR = (
-    props.testSpot || props.demoTree ? require('./GlobalARScene') : require('./SurfaceARScene')
+    props.testSpot || props.demoTree || props.campusMarkers
+      ? require('./GlobalARScene')
+      : require('./SurfaceARScene')
   ).default as React.ComponentType<SurfaceARProps>;
   return <NativeSurfaceAR {...props} />;
 }

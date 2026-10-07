@@ -310,6 +310,10 @@ export function PlacementScene({ sceneNavigator }: SceneProps = {} as SceneProps
         <ARInfoPanel
           key={stop.title}
           detail={stop}
+          parentPosition={panelPoint}
+          parentRotation={parentRotation}
+          page={app.storyPage}
+          onPageChange={app.onStoryPageChange}
           onClose={selection.close}
           onListen={app.onListen}
           speaking={app.speaking}

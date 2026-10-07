@@ -6,6 +6,7 @@ export type StopId =
   | 'harvard-science-center'
   | 'quincy-house-courtyard'
   | 'malkin-athletic-center'
+  | 'widener-library'
   | 'demo-tree';
 export type LayerId = 'structures' | 'people' | 'equipment' | 'photos' | 'stories';
 export type StoryStop = {
@@ -19,6 +20,7 @@ export type StoryStop = {
   y: number;
   description: string;
   story: string;
+  sources?: { title: string; url: string }[];
 };
 export const demoSite = {
   title: 'A place full of stories',

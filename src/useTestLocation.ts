@@ -77,6 +77,22 @@ export default function useTestLocation(active: boolean) {
           setError('Allow location access to check this spot.');
           return;
         }
+        // A watcher may wait for movement before delivering its first fix.
+        // Fetch once as well so arriving and standing still can show the dots.
+        void api
+          .getCurrentPositionAsync({ accuracy: api.Accuracy.High })
+          .then((next) => {
+            if (!alive) return;
+            setFix((current) =>
+              current && current.timestamp > next.timestamp
+                ? current
+                : { ...next.coords, timestamp: next.timestamp },
+            );
+            setNow(Date.now());
+          })
+          .catch(() => {
+            // Keep the continuous watcher running if the one-shot request fails.
+          });
         subscription = await api.watchPositionAsync(
           { accuracy: api.Accuracy.High, distanceInterval: 2, timeInterval: 3000 },
           (next) => {

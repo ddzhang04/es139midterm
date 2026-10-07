@@ -20,6 +20,9 @@ import * as Haptics from 'expo-haptics';
 import useNarration from './useNarration';
 import useCameraSession from './useCameraSession';
 import useExplorationProgress from './useExplorationProgress';
+import useObjectCollection from './useObjectCollection';
+import ObjectCollection from './components/ObjectCollection';
+import LandmarkPhotoScan from './screens/LandmarkPhotoScan';
 import Slider from '@react-native-community/slider';
 import ResponsiveAROverlay from './ResponsiveAROverlay';
 import { LayerId, StopId, harvardTestStop, treeDemoStory, stops } from './content';
@@ -54,7 +57,12 @@ export default function HistoryLens() {
   const [arFrom, setARFrom] = useState<'welcome' | 'map'>('welcome');
   const [mode, setMode] = useState<Mode>('scan');
   const [selected, setSelected] = useState<StopId | null>(null);
+  const [storyPage, setStoryPage] = useState(0);
   const [fullScreenStory, setFullScreenStory] = useState(false);
+  const collection = useObjectCollection();
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [photoScan, setPhotoScan] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
   useEffect(() => {
     if (!selected || screen !== 'ar') setFullScreenStory(false);
   }, [selected, screen]);
@@ -90,6 +98,7 @@ export default function HistoryLens() {
   const [placementStop, setPlacementStop] = useState<StopId>('gun');
   const {
     speaking,
+    error: narrationError,
     stop: stopNarration,
     toggle: toggleNarration,
   } = useNarration(screen === 'ar' && foreground);
@@ -114,7 +123,11 @@ export default function HistoryLens() {
         )
       : null;
   const detail =
-    targetStory?.id === selected ? targetStory : stops.find((stop) => stop.id === selected);
+    targetStory?.id === selected
+      ? targetStory
+      : campusPlaces.some((place) => place.id === selected)
+        ? campusStory(campusPlaces.find((place) => place.id === selected)!)
+        : stops.find((stop) => stop.id === selected);
   const locationUnlocked =
     !targetSpot ||
     nearby?.state === 'nearby' ||
@@ -126,34 +139,6 @@ export default function HistoryLens() {
       setPreviewSpot(null);
     } else if (targetSpot && nearby?.state === 'nearby') setUnlockedSpot(targetSpot.savedAt);
   }, [screen, targetSpot?.savedAt, nearby?.state, surfacePhase]);
-  useEffect(() => {
-    if (
-      screen !== 'ar' ||
-      campusTarget ||
-      demoTree ||
-      (geo.spot &&
-        (geo.allowed || unlockedSpot === geo.spot.savedAt || previewSpot === geo.spot.savedAt)) ||
-      !geo.fix
-    )
-      return;
-    const place = campusPlaces.find(
-      (place) => proximity(campusSpot(place), geo.fix!).state === 'nearby',
-    );
-    if (place) {
-      dismissStory();
-      setCampusTarget(place);
-      setPlacementRevision(0);
-    }
-  }, [
-    screen,
-    campusTarget?.id,
-    demoTree,
-    geo.fix,
-    geo.allowed,
-    geo.spot?.savedAt,
-    unlockedSpot,
-    previewSpot,
-  ]);
   const nativeAR = camera && !!permission?.granted && supportsSurfaceAR && foreground;
   const placedStop = targetStory || stops.find((stop) => stop.id === placementStop)!;
   const markerLayerVisible =
@@ -181,6 +166,8 @@ export default function HistoryLens() {
 
   const back = () => {
     stopNarration();
+    if (collectionOpen) return setCollectionOpen(false);
+    if (photoScan) return setPhotoScan(false);
     if (fullScreenStory) return setFullScreenStory(false);
     if (panel) return setPanel(null);
     if (layerPanel) return setLayerPanel(false);
@@ -198,7 +185,17 @@ export default function HistoryLens() {
       return true;
     });
     return () => subscription.remove();
-  }, [screen, selected, panel, layerPanel, mapFrom, arFrom, fullScreenStory]);
+  }, [
+    screen,
+    selected,
+    panel,
+    layerPanel,
+    mapFrom,
+    arFrom,
+    fullScreenStory,
+    collectionOpen,
+    photoScan,
+  ]);
   useEffect(() => {
     if (selected) {
       grow.setValue(1);
@@ -206,9 +203,11 @@ export default function HistoryLens() {
     }
   }, [selected]);
   function openStop(id: StopId) {
+    setScanMessage('');
     Haptics.selectionAsync().catch(() => {});
     stopNarration();
     setLayerPanel(false);
+    setStoryPage(0);
     setSelected(id);
     visit(id);
   }
@@ -254,6 +253,7 @@ export default function HistoryLens() {
     setSelected(null);
     setMode('scan');
     setScreen('ar');
+    if (!uiPreview) void geo.requestLocation();
     void enableCamera();
   };
 
@@ -267,8 +267,12 @@ export default function HistoryLens() {
     setPlacementStop(id);
     setScreen('ar');
     setMode(id === 'keeper' ? 'discover' : 'reconstruct');
+    if (!uiPreview) void geo.requestLocation();
     void enableCamera();
-    openStop(id);
+    // Campus AR has separate geotagged dots, not the old sample marker.
+    // Selecting that sample here hides all campus dots without opening a card.
+    if (supportsSurfaceAR && !uiPreview) setSelected(null);
+    else openStop(id);
   }
 
   function exploreCampus(place: CampusPlace) {
@@ -365,6 +369,22 @@ export default function HistoryLens() {
     </View>
   );
 
+  if (photoScan)
+    return (
+      <LandmarkPhotoScan
+        fix={geo.fix}
+        foreground={foreground}
+        onCancel={() => setPhotoScan(false)}
+        onCollect={(place) => {
+          collection.collect(place.id);
+          setPhotoScan(false);
+          openStop(place.id);
+          setScanMessage(`Collected: ${place.title}`);
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }}
+      />
+    );
+
   return (
     <View
       style={[
@@ -385,6 +405,8 @@ export default function HistoryLens() {
           developer={devControl}
           onExplore={enterAR}
           onOpenMap={openMap}
+          onOpenCollection={() => setCollectionOpen(true)}
+          collectionCount={collection.ids.length}
         />
       )}
       {screen === 'map' && (
@@ -420,6 +442,11 @@ export default function HistoryLens() {
             <SurfaceARView
               key={demoTree ? 'tree-demo' : 'site-ar'}
               demoTree={demoTree}
+              campusMarkers={!demoTree}
+              campusMarkersVisible={enabled.structures}
+              selectedStopId={selected}
+              storyPage={storyPage}
+              onStoryPageChange={setStoryPage}
               onMarkerGuide={setMarkerGuide}
               locationFix={geo.fix}
               onPlacementSaved={campusTarget || demoTree ? undefined : geo.savePlacement}
@@ -508,42 +535,48 @@ export default function HistoryLens() {
                     )
                   }
                 />
-                <View style={s.arHint}>
+                <View style={s.arHint} pointerEvents="none">
                   {nativeAR ? (
                     <View style={s.hintCard}>
                       <Text accessibilityLiveRegion="polite" style={s.hintText}>
-                        {campusTarget && !locationUnlocked
-                          ? `Go within 50 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
-                          : demoTree && !selected
-                            ? '3D tree placed in front of you. Move around it or tap it for details.'
-                            : selected
-                              ? demoTree
-                                ? 'Tree window open beside the tree. Tap × to close.'
-                                : 'Card pinned where you opened it. Tap × to close.'
-                              : !markerLayerVisible
-                                ? campusTarget
-                                  ? 'Marker hidden by Layers. Enable Structures to show it.'
-                                  : 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
-                                : markerOpacity === 0
-                                  ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
-                                  : surfacePhase === 'anchorError'
-                                    ? anchorError || surfaceInstructions.anchorError
-                                    : [
-                                          'saving',
-                                          'resolving',
-                                          'aligning',
-                                          'saved',
-                                          'restored',
-                                          'globalWaiting',
-                                          'globalPlaced',
-                                          'globalSaved',
-                                          'globalRestored',
-                                        ].includes(surfacePhase)
-                                      ? surfaceInstructions[surfacePhase]
-                                      : geo.spot && !locationUnlocked
-                                        ? 'Return near your saved spot with a precise location reading to unlock the tile.'
-                                        : surfaceInstructions[surfacePhase]}
-                        {!selected && targetSpot && markerGuide ? `\n${markerGuide}` : ''}
+                        {narrationError ||
+                          (selected && scanMessage) ||
+                          (campusTarget && !locationUnlocked
+                            ? `Go within 200 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
+                            : demoTree && !selected
+                              ? '3D tree placed in front of you. Move around it or tap it for details.'
+                              : selected
+                                ? demoTree
+                                  ? 'Tree window open beside the tree. Tap × to close.'
+                                  : 'Card pinned where you opened it. Tap × to close.'
+                                : !markerLayerVisible
+                                  ? campusTarget
+                                    ? 'Marker hidden by Layers. Enable Structures to show it.'
+                                    : 'Marker hidden by Layers. Tap Show marker in front of me to show it.'
+                                  : markerOpacity === 0
+                                    ? 'Marker hidden by the comparison slider. Increase Past or reposition it to show it.'
+                                    : surfacePhase === 'anchorError'
+                                      ? anchorError || surfaceInstructions.anchorError
+                                      : !demoTree &&
+                                          (!geo.spot || campusTarget) &&
+                                          surfacePhase === 'globalRestored'
+                                        ? 'Look around for nearby story dots. Each dot marks its own location.'
+                                        : [
+                                              'saving',
+                                              'resolving',
+                                              'aligning',
+                                              'saved',
+                                              'restored',
+                                              'globalWaiting',
+                                              'globalPlaced',
+                                              'globalSaved',
+                                              'globalRestored',
+                                            ].includes(surfacePhase)
+                                          ? surfaceInstructions[surfacePhase]
+                                          : geo.spot && !locationUnlocked
+                                            ? 'Return near your saved spot with a precise location reading to unlock the tile.'
+                                            : surfaceInstructions[surfacePhase])}
+                        {!selected && markerGuide ? `\n${markerGuide}` : ''}
                       </Text>
                     </View>
                   ) : mode === 'compare' ? (
@@ -553,7 +586,7 @@ export default function HistoryLens() {
                       <Icon name="footsteps" />
                       <Text style={s.hintText}>
                         {campusTarget && !locationUnlocked
-                          ? `Go within 50 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
+                          ? `Go within 200 m of ${campusTarget.title} with a precise GPS reading to see its AR circle.`
                           : selected
                             ? 'Tap another circle to keep exploring.'
                             : 'Tap a red or blue circle to discover its story.'}
@@ -660,265 +693,272 @@ export default function HistoryLens() {
               </ScrollView>
             }
             footer={
-              nativeAR && selected && !layerPanel ? (
-                <View testID="ar-card-toolbar" style={{ flexDirection: 'row', gap: 8 }}>
-                  <Button
-                    compact
-                    grow
-                    dark
-                    secondary
-                    title={speaking ? 'Stop audio' : 'Listen'}
-                    onPress={listen}
-                  />
-                  <Button
-                    compact
-                    grow
-                    dark
-                    secondary
-                    title="Read full story"
-                    onPress={() => setFullScreenStory(true)}
-                  />
-                  <Button
-                    compact
-                    grow
-                    dark
-                    secondary
-                    title="Close AR information"
-                    onPress={dismissStory}
-                  />
-                </View>
-              ) : (
+              nativeAR && selected && !layerPanel ? null : (
                 <>
-                  {nativeAR &&
-                    !campusTarget &&
-                    !demoTree &&
-                    geo.spot?.placement &&
-                    surfacePhase === 'anchorError' && (
+                  {nativeAR && !selected && !layerPanel && (
+                    <View style={{ gap: 8, marginBottom: 12 }}>
                       <Button
                         compact
-                        title="Retry saved position"
+                        dark
+                        secondary
+                        title="Scan objects"
+                        icon="scan"
                         onPress={() => {
-                          setPlacementRevision(0);
-                          setAnchorRestoreRequest((value) => value + 1);
+                          stopNarration();
+                          setPhotoScan(true);
                         }}
                       />
-                    )}
-                  {nativeAR &&
-                    !campusTarget &&
-                    !demoTree &&
-                    geo.spot &&
-                    (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && (
-                      <Button
-                        compact
-                        title="Save global position"
-                        onPress={() => setAnchorSaveRequest((value) => value + 1)}
-                      />
-                    )}
-                  {nativeAR && !selected && !layerPanel && (!campusTarget || locationUnlocked) && (
-                    <View style={{ gap: 10, marginBottom: 12 }}>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ gap: 8 }}
-                      >
-                        {(targetStory ? [targetStory] : stops).map((stop) => (
-                          <Pressable
-                            key={stop.id}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Open AR information for ${stop.title}`}
-                            accessibilityState={{ selected: placementStop === stop.id }}
+                    </View>
+                  )}
+                  {
+                    <>
+                      {nativeAR &&
+                        !campusTarget &&
+                        !demoTree &&
+                        geo.spot?.placement &&
+                        surfacePhase === 'anchorError' && (
+                          <Button
+                            compact
+                            title="Retry saved position"
                             onPress={() => {
-                              setPlacementStop(stop.id);
-                              openStop(stop.id);
+                              setPlacementRevision(0);
+                              setAnchorRestoreRequest((value) => value + 1);
                             }}
+                          />
+                        )}
+                      {nativeAR &&
+                        !campusTarget &&
+                        !demoTree &&
+                        geo.spot &&
+                        (surfacePhase === 'globalPlaced' || surfacePhase === 'anchorError') && (
+                          <Button
+                            compact
+                            title="Save global position"
+                            onPress={() => setAnchorSaveRequest((value) => value + 1)}
+                          />
+                        )}
+                      {nativeAR &&
+                        !selected &&
+                        !layerPanel &&
+                        demoTree &&
+                        (!campusTarget || locationUnlocked) && (
+                          <View style={{ gap: 10, marginBottom: 12 }}>
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={{ gap: 8 }}
+                            >
+                              {(targetStory ? [targetStory] : stops).map((stop) => (
+                                <Pressable
+                                  key={stop.id}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Open AR information for ${stop.title}`}
+                                  accessibilityState={{ selected: placementStop === stop.id }}
+                                  onPress={() => {
+                                    setPlacementStop(stop.id);
+                                    openStop(stop.id);
+                                  }}
+                                  style={[
+                                    s.tag,
+                                    {
+                                      minHeight: 44,
+                                      backgroundColor:
+                                        placementStop === stop.id ? stop.color : C.cream,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      s.tagText,
+                                      { color: placementStop === stop.id ? 'white' : C.green },
+                                    ]}
+                                  >
+                                    {stop.title}
+                                  </Text>
+                                </Pressable>
+                              ))}
+                            </ScrollView>
+                            {!campusTarget && !demoTree && (
+                              <Button
+                                compact
+                                title={
+                                  demoTree
+                                    ? 'Place tree again'
+                                    : geo.spot
+                                      ? 'Show marker in front of me'
+                                      : 'Place marker again'
+                                }
+                                dark
+                                secondary
+                                onPress={showMarker}
+                              />
+                            )}
+                          </View>
+                        )}
+                      {camera && !supportsSurfaceAR && (
+                        <Text
+                          style={{
+                            color: 'white',
+                            textAlign: 'center',
+                            fontSize: 12,
+                            marginBottom: 8,
+                          }}
+                        >
+                          Surface AR needs the HistoryLens development build. Expo Go shows screen
+                          markers.
+                        </Text>
+                      )}
+                      {detail && !layerPanel && !nativeAR ? (
+                        <StoryCard
+                          detail={detail}
+                          speaking={speaking}
+                          stackActions={stackActions}
+                          onClose={dismissStory}
+                          onListen={listen}
+                          onExpand={() => setFullScreenStory(true)}
+                          onSources={() => setPanel('sources')}
+                        />
+                      ) : mode === 'compare' ? (
+                        <View style={s.comparison}>
+                          <Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text>
+                          <View
                             style={[
-                              s.tag,
-                              {
-                                minHeight: 44,
-                                backgroundColor: placementStop === stop.id ? stop.color : C.cream,
+                              s.sliderRow,
+                              stackActions && {
+                                flexDirection: 'column',
+                                borderRadius: 14,
+                                paddingVertical: 8,
                               },
                             ]}
                           >
-                            <Text
-                              style={[
-                                s.tagText,
-                                { color: placementStop === stop.id ? 'white' : C.green },
-                              ]}
-                            >
-                              {stop.title}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </ScrollView>
-                      {!campusTarget && (
-                        <Button
-                          compact
-                          title={
-                            demoTree
-                              ? 'Place tree again'
-                              : geo.spot
-                                ? 'Show marker in front of me'
-                                : 'Place marker again'
-                          }
-                          dark
-                          secondary
-                          onPress={showMarker}
-                        />
+                            <Text style={s.sliderLabel}>Past</Text>
+                            <Slider
+                              accessibilityLabel="Historical overlay opacity"
+                              accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }}
+                              style={
+                                stackActions
+                                  ? { width: '100%', height: 44 }
+                                  : { flex: 1, height: 44 }
+                              }
+                              minimumValue={0}
+                              maximumValue={100}
+                              value={past}
+                              onValueChange={setPast}
+                              minimumTrackTintColor={C.green}
+                              maximumTrackTintColor={C.line}
+                              thumbTintColor={C.green}
+                            />
+                            <Text style={s.sliderLabel}>Present</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={s.arStatus}>
+                          <View style={s.liveDot} />
+                          <Text style={s.liveText}>
+                            {demoTree
+                              ? 'Tree demo'
+                              : campusTarget
+                                ? campusTarget.title
+                                : geo.spot
+                                  ? 'Saved location'
+                                  : nativeAR
+                                    ? 'Nearby stories'
+                                    : camera
+                                      ? 'Live camera'
+                                      : 'Explore stories'}{' '}
+                            ·{' '}
+                            {targetStory
+                              ? visited.includes(targetStory.id)
+                                ? 1
+                                : 0
+                              : visited.filter((id) => stops.some((stop) => stop.id === id)).length}
+                            /{targetStory ? 1 : stops.length} stories explored
+                          </Text>
+                        </View>
                       )}
-                    </View>
-                  )}
-                  {demoTree && !nativeAR && !selected && !layerPanel && (
-                    <Button compact dark secondary title="Place tree again" onPress={showMarker} />
-                  )}
-                  {!selected && !layerPanel && (
-                    <Button
-                      compact
-                      dark
-                      secondary
-                      title={demoTree ? 'Return to site markers' : 'Place demo tree'}
-                      onPress={demoTree ? enterAR : placeDemoTree}
-                    />
-                  )}
-                  {camera && !supportsSurfaceAR && (
-                    <Text
-                      style={{ color: 'white', textAlign: 'center', fontSize: 12, marginBottom: 8 }}
-                    >
-                      Surface AR needs the HistoryLens development build. Expo Go shows screen
-                      markers.
-                    </Text>
-                  )}
-                  {detail && !layerPanel && !nativeAR ? (
-                    <StoryCard
-                      detail={detail}
-                      speaking={speaking}
-                      stackActions={stackActions}
-                      onClose={dismissStory}
-                      onListen={listen}
-                      onExpand={() => setFullScreenStory(true)}
-                      onSources={() => setPanel('sources')}
-                    />
-                  ) : mode === 'compare' ? (
-                    <View style={s.comparison}>
-                      <Text style={s.comparisonTitle}>Move the slider to reveal the past.</Text>
-                      <View
-                        style={[
-                          s.sliderRow,
-                          stackActions && {
-                            flexDirection: 'column',
-                            borderRadius: 14,
-                            paddingVertical: 8,
-                          },
-                        ]}
-                      >
-                        <Text style={s.sliderLabel}>Past</Text>
-                        <Slider
-                          accessibilityLabel="Historical overlay opacity"
-                          accessibilityValue={{ min: 0, max: 100, now: Math.round(past) }}
-                          style={
-                            stackActions ? { width: '100%', height: 44 } : { flex: 1, height: 44 }
-                          }
-                          minimumValue={0}
-                          maximumValue={100}
-                          value={past}
-                          onValueChange={setPast}
-                          minimumTrackTintColor={C.green}
-                          maximumTrackTintColor={C.line}
-                          thumbTintColor={C.green}
-                        />
-                        <Text style={s.sliderLabel}>Present</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={s.arStatus}>
-                      <View style={s.liveDot} />
-                      <Text style={s.liveText}>
-                        {demoTree
-                          ? 'Tree demo'
-                          : campusTarget
-                            ? campusTarget.title
-                            : geo.spot
-                              ? 'Saved location'
-                              : nativeAR
-                                ? 'Surface AR'
-                                : camera
-                                  ? 'Live camera'
-                                  : 'Demo scene'}{' '}
-                        ·{' '}
-                        {targetStory
-                          ? visited.includes(targetStory.id)
-                            ? 1
-                            : 0
-                          : visited.filter((id) => stops.some((stop) => stop.id === id)).length}
-                        /{targetStory ? 1 : stops.length} stories explored
-                      </Text>
-                    </View>
-                  )}
-                  {mode === 'scan' && !selected ? (
-                    <View style={s.scanControls}>
-                      <RoundButton icon="mapLight" label="Open site map" dark onPress={openMap} />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Scan site and reconstruct"
-                        onPress={() => changeMode('reconstruct')}
-                        style={s.scanButton}
-                      >
-                        <View style={s.scanInner} />
-                      </Pressable>
-                      <RoundButton
-                        icon="volume"
-                        label="Audio information"
-                        dark
-                        onPress={() => setPanel('help')}
-                      />
-                    </View>
-                  ) : (
-                    <View style={s.modes}>
-                      {(
-                        [
-                          { id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' },
-                          { id: 'compare', icon: 'compare', title: 'Compare' },
-                          { id: 'discover', icon: 'discover', title: 'Discover' },
-                        ] as const
-                      ).map((item) => (
-                        <Pressable
-                          key={item.id}
-                          accessibilityRole="tab"
-                          accessibilityState={{ selected: mode === item.id }}
-                          onPress={() => changeMode(item.id)}
-                          style={[s.mode, mode === item.id && s.modeSelected]}
-                        >
-                          <Icon name={item.icon} />
-                          <Text
-                            style={[
-                              s.modeText,
-                              mode === item.id && { color: C.green, fontFamily: 'Inter_700Bold' },
-                            ]}
+                      {mode === 'scan' && !selected ? (
+                        <View style={s.scanControls}>
+                          <RoundButton
+                            icon="mapLight"
+                            label="Open site map"
+                            dark
+                            onPress={openMap}
+                          />
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Scan site and reconstruct"
+                            onPress={() => changeMode('reconstruct')}
+                            style={s.scanButton}
                           >
-                            {item.title}
+                            <View style={s.scanInner} />
+                          </Pressable>
+                          <RoundButton
+                            icon="volume"
+                            label="Audio information"
+                            dark
+                            onPress={() => setPanel('help')}
+                          />
+                        </View>
+                      ) : (
+                        <View style={s.modes}>
+                          {(
+                            [
+                              { id: 'reconstruct', icon: 'reconstruct', title: 'Reconstruct' },
+                              { id: 'compare', icon: 'compare', title: 'Compare' },
+                              { id: 'discover', icon: 'discover', title: 'Discover' },
+                            ] as const
+                          ).map((item) => (
+                            <Pressable
+                              key={item.id}
+                              accessibilityRole="tab"
+                              accessibilityState={{ selected: mode === item.id }}
+                              onPress={() => changeMode(item.id)}
+                              style={[s.mode, mode === item.id && s.modeSelected]}
+                            >
+                              <Icon name={item.icon} />
+                              <Text
+                                style={[
+                                  s.modeText,
+                                  mode === item.id && {
+                                    color: C.green,
+                                    fontFamily: 'Inter_700Bold',
+                                  },
+                                ]}
+                              >
+                                {item.title}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                      <View style={s.arTools}>
+                        <Pressable accessibilityRole="button" onPress={toggleCamera}>
+                          <Text style={s.toolText}>
+                            {uiPreview
+                              ? 'UI preview · demo scene'
+                              : camera
+                                ? 'Use demo scene'
+                                : 'Use live camera'}
                           </Text>
                         </Pressable>
-                      ))}
-                    </View>
-                  )}
-                  <View style={s.arTools}>
-                    <Pressable accessibilityRole="button" onPress={toggleCamera}>
-                      <Text style={s.toolText}>
-                        {uiPreview
-                          ? 'UI preview · demo scene'
-                          : camera
-                            ? 'Use demo scene'
-                            : 'Use live camera'}
-                      </Text>
-                    </Pressable>
-                    <Pressable accessibilityRole="button" onPress={openMap}>
-                      <Text style={s.toolText}>Site map ↗</Text>
-                    </Pressable>
-                  </View>
+                        <Pressable accessibilityRole="button" onPress={openMap}>
+                          <Text style={s.toolText}>Site map ↗</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  }
                 </>
               )
             }
           />
         </View>
+      )}
+      {collectionOpen && (
+        <ObjectCollection
+          ids={collection.ids}
+          error={collection.error}
+          onClose={() => setCollectionOpen(false)}
+        />
       )}
       <AppPanel
         panel={panel}
@@ -931,6 +971,18 @@ export default function HistoryLens() {
         anchorError={anchorError}
         progressError={progressError}
         onClose={() => setPanel(null)}
+        demoTree={demoTree}
+        onPlaceTree={() => {
+          if (screen !== 'ar') setARFrom(screen === 'map' ? 'map' : 'welcome');
+          setScreen('ar');
+          if (demoTree) showMarker();
+          else placeDemoTree();
+          setPanel(null);
+        }}
+        onReturnToMarkers={() => {
+          enterAR();
+          setPanel(null);
+        }}
         onReposition={() => {
           showMarker();
           setPanel(null);

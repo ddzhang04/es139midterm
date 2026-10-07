@@ -11,6 +11,8 @@ type Props = {
   developer: React.ReactNode;
   onExplore: () => void;
   onOpenMap: () => void;
+  onOpenCollection: () => void;
+  collectionCount: number;
 };
 export default function WelcomeScreen({
   height,
@@ -19,6 +21,8 @@ export default function WelcomeScreen({
   developer,
   onExplore,
   onOpenMap,
+  onOpenCollection,
+  collectionCount,
 }: Props) {
   return (
     <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
@@ -50,6 +54,11 @@ export default function WelcomeScreen({
         <View style={s.actions}>
           <Button title="Explore This Site" icon="compass" onPress={onExplore} />
           <Button title="View Site Map" icon="map" secondary onPress={onOpenMap} />
+          <Button
+            title={`My collection (${collectionCount})`}
+            secondary
+            onPress={onOpenCollection}
+          />
         </View>
       </View>
     </ScrollView>

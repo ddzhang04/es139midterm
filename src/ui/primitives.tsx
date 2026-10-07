@@ -17,6 +17,7 @@ export function Button({
   compact = false,
   grow = false,
   dark = false,
+  disabled = false,
 }: {
   title: string;
   icon?: IconName;
@@ -25,13 +26,17 @@ export function Button({
   compact?: boolean;
   grow?: boolean;
   dark?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
+        disabled && { opacity: 0.5 },
         secondary && s.secondary,
         secondary && dark && { backgroundColor: C.glass, borderColor: C.cream },
         compact && s.compact,

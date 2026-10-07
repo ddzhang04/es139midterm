@@ -27,7 +27,13 @@ jest.mock('@reactvision/react-viro', () => {
     ViroQuad: component('quad'),
     ViroImage: component('tree-trunk'),
     ViroBox: (props: { materials?: string[] }) =>
-      component(props.materials?.includes('TreeBark') ? 'tree-trunk' : 'button-target')(props),
+      component(
+        props.materials?.includes('TreeBark')
+          ? 'tree-trunk'
+          : props.materials?.includes('ARInfoButtonTouch')
+            ? 'button-target'
+            : 'button-background',
+      )(props),
     ViroText: component('text'),
     ViroMaterials: { createMaterials: jest.fn() },
     ViroTrackingStateConstants: { TRACKING_NORMAL: 3 },
@@ -394,12 +400,30 @@ test('AR controls respond on contact once and keep decorative geometry out of hi
   expect(view.getAllByTestId('text').some((text) => text.props.text === firstStoryPage)).toBe(true);
   gesture(0);
   expect(listen).toHaveBeenCalledTimes(1);
+  expect(expand).not.toHaveBeenCalled();
+  // Text and solid button geometry share one action. Container bounds must never
+  // capture a neighboring action, and the two bottom rows must not overlap.
+  const actionNodes = view
+    .getAllByTestId('node')
+    .filter((node) => node.findAllByProps({ testID: 'button-target' }).length === 1);
+  actionNodes.forEach((node) => {
+    expect(node.props.onClick).toBeUndefined();
+    expect(node.props.onClickState).toBeUndefined();
+    expect(node.findByProps({ testID: 'button-target' }).props.highAccuracyEvents).toBe(true);
+  });
+  const listenBottom = -0.4 - target(0).props.height / 2;
+  const expandTop = -0.6 + target(0, -0.6).props.height / 2;
+  expect(expandTop).toBeLessThan(listenBottom);
   gesture(0, -0.6);
   expect(expand).toHaveBeenCalledTimes(1);
   gesture(0.58, 0.6);
   expect(close).toHaveBeenCalledTimes(1);
   expect(view.getAllByTestId('quad').every((quad) => quad.props.ignoreEventHandling)).toBe(true);
-  expect(view.getAllByTestId('text').every((text) => text.props.ignoreEventHandling)).toBe(true);
+  expect(
+    view
+      .getAllByTestId('text')
+      .every((text) => text.props.ignoreEventHandling || typeof text.props.onClick === 'function'),
+  ).toBe(true);
 });
 
 test.each(campusPlaces)(
@@ -570,7 +594,9 @@ test('opening-card release cannot expand it and each visible button needs its ow
       .find((node) => node.props.position?.[0] === x && node.props.position?.[1] === y)!
       .findByProps({ testID: 'button-target' });
   const fullScreen = buttonAt(0, -0.6);
-  expect(fullScreen.props.materials).toEqual(['ARInfoButton']);
+  expect(fullScreen.props.materials).toEqual(['ARInfoButtonTouch']);
+  expect(fullScreen.props.position[2] - fullScreen.props.length / 2).toBeGreaterThan(0.025);
+  expect(fullScreen.props.highAccuracyEvents).toBe(true);
   fireEvent(fullScreen, 'clickState', 2);
   fireEvent(fullScreen, 'clickState', 3);
   expect(expand).not.toHaveBeenCalled();
@@ -606,6 +632,247 @@ test('Next recovers from a missed release and click-only taps advance once', () 
     now += 800;
     fireEvent(next(), 'click');
     expect(body()).toBe(pages[3]);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test('campus places render separate GPS dots with their own stories and stable session positions', () => {
+  const place = campusPlaces[1];
+  const app: SurfaceARProps = {
+    ...appProps(),
+    testSpot: null,
+    campusMarkers: true,
+    campusMarkersVisible: true,
+    selectedStopId: null,
+    locationFix: { ...fix(), latitude: place.latitude, longitude: place.longitude },
+  };
+  const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+  fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+  const dots = () =>
+    view.getAllByTestId('marker').filter((item) => item.props.materials?.includes('CampusBeacon'));
+  expect(dots()).toHaveLength(4);
+  const positions = view
+    .getAllByTestId('node')
+    .filter((node) => node.props.opacity !== undefined)
+    .map((node) => node.props.position);
+  expect(new Set(positions.map((point) => JSON.stringify(point))).size).toBe(4);
+  expect(positions[1]).toEqual(camera.position);
+  const cameraModel = view
+    .getAllByTestId('node')
+    .find((node) => node.props.position?.[0] === 1.35)!;
+  expect(cameraModel.props.position).toEqual([1.35, -0.1, 0]);
+  const bodies = view
+    .getAllByTestId('button-background')
+    .filter(
+      (box) => box.props.materials?.includes('FilmCameraLeather') && box.props.width === 0.85,
+    );
+  expect(bodies).toHaveLength(1);
+  expect(bodies[0].props.length).toBe(0.28);
+  const funnels = view
+    .getAllByTestId('button-background')
+    .filter((box) => box.props.materials?.includes('TitanicFunnel'));
+  expect(funnels).toHaveLength(4);
+
+  const markerVisibility = () =>
+    view
+      .getAllByTestId('node')
+      .filter((node) => node.props.opacity !== undefined)
+      .map((node) => node.props.visible);
+  const baselineVisibility = markerVisibility();
+  campusPlaces.forEach((campus, index) => {
+    fireEvent(dots()[index], 'click');
+    expect(app.onSelect).toHaveBeenLastCalledWith(campus.id);
+    view.rerender(
+      <GlobalPlacementScene
+        sceneNavigator={{ viroAppProps: { ...app, selectedStopId: campus.id } }}
+      />,
+    );
+    expect(view.getAllByTestId('text').some((text) => text.props.text === campus.title)).toBe(true);
+    markerVisibility().forEach((visible, markerIndex) => {
+      if (markerIndex !== index) expect(visible).toBe(baselineVisibility[markerIndex]);
+    });
+    view.rerender(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+  });
+  view.rerender(
+    <GlobalPlacementScene
+      sceneNavigator={{
+        viroAppProps: {
+          ...app,
+          locationFix: { ...app.locationFix!, latitude: place.latitude + 0.001 },
+        },
+      }}
+    />,
+  );
+  expect(
+    view
+      .getAllByTestId('node')
+      .filter((node) => node.props.opacity !== undefined)
+      .map((node) => node.props.position),
+  ).toEqual(positions);
+});
+
+test('campus dots report GPS problems instead of claiming restoration, then give directions to the rendered dot', () => {
+  let now = Date.now();
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  try {
+    const place = campusPlaces[0];
+    const app: SurfaceARProps = {
+      ...appProps(),
+      testSpot: null,
+      campusMarkers: true,
+      campusMarkersVisible: true,
+      onMarkerGuide: jest.fn(),
+      locationFix: {
+        ...fix(),
+        accuracy: 80,
+        latitude: place.latitude - 0.0001,
+        longitude: place.longitude,
+      },
+    };
+    const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+    fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+    expect(app.onPhaseChange).not.toHaveBeenCalledWith('globalRestored');
+    expect(app.onMarkerGuide).toHaveBeenLastCalledWith(
+      expect.stringContaining('GPS accuracy is ±80 m'),
+    );
+    view.rerender(
+      <GlobalPlacementScene
+        sceneNavigator={{
+          viroAppProps: {
+            ...app,
+            locationFix: { ...app.locationFix!, accuracy: 5 },
+          },
+        }}
+      />,
+    );
+    expect(app.onPhaseChange).toHaveBeenLastCalledWith('globalRestored');
+    now += 600;
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+    expect(app.onMarkerGuide).toHaveBeenLastCalledWith(
+      expect.stringMatching(/Harvard Science Center: Marker ≈ 11.1 m away · look ahead/),
+    );
+    now += 600;
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+      ...camera,
+      forward: [0, 0, 1],
+    });
+    expect(app.onMarkerGuide).toHaveBeenLastCalledWith(expect.stringContaining('turn around'));
+    view.unmount();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test('the scanner targets the film camera geometry from the AR camera orientation', () => {
+  let now = Date.now();
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  try {
+    const place = campusPlaces[0];
+    const onScanTargetChange = jest.fn();
+    const app: SurfaceARProps = {
+      ...appProps(),
+      testSpot: null,
+      campusMarkers: true,
+      campusMarkersVisible: true,
+      onScanTargetChange,
+      locationFix: { ...fix(), latitude: place.latitude - 0.0001, longitude: place.longitude },
+    };
+    const view = render(<GlobalPlacementScene sceneNavigator={{ viroAppProps: app }} />);
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', camera);
+    fireEvent(view.getByTestId('scene'), 'trackingUpdated', 3);
+    const modelPoint = globalToWorld(
+      campusSpot(place).placement!,
+      app.locationFix!,
+      camera.position as [number, number, number],
+    );
+    const towardModel = [
+      modelPoint[0] + 1.35 - camera.position[0],
+      -0.1,
+      modelPoint[2] - camera.position[2],
+    ];
+    const length = Math.hypot(...towardModel);
+    now += 200;
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+      ...camera,
+      forward: towardModel.map((v) => v / length),
+    });
+    expect(onScanTargetChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'science-center-camera', storyId: place.id }),
+    );
+    now += 200;
+    fireEvent(view.getByTestId('scene'), 'cameraTransformUpdate', {
+      ...camera,
+      forward: [0, 0, 1],
+    });
+    expect(onScanTargetChange).toHaveBeenLastCalledWith(null);
+    view.unmount();
+    expect(onScanTargetChange).toHaveBeenLastCalledWith(null);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test('AR label hits activate their own actions without opening full screen', () => {
+  const listen = jest.fn();
+  const expand = jest.fn();
+  const pageChange = jest.fn();
+  const view = render(
+    <ARInfoPanel
+      detail={harvardTestStop}
+      onClose={jest.fn()}
+      onListen={listen}
+      onExpand={expand}
+      onPageChange={pageChange}
+    />,
+  );
+  const label = (name: string) => view.getAllByTestId('text').find((t) => t.props.text === name)!;
+  fireEvent(label('Listen'), 'clickState', 1);
+  fireEvent(label('Listen'), 'clickState', 2);
+  fireEvent(label('Next'), 'clickState', 1);
+  expect(listen).toHaveBeenCalledTimes(1);
+  expect(pageChange).toHaveBeenCalledWith(1);
+  expect(expand).not.toHaveBeenCalled();
+  fireEvent(label('Read full screen'), 'clickState', 1);
+  expect(expand).toHaveBeenCalledTimes(1);
+});
+
+test('a misreported full-screen native hit dispatches from its world contact instead', () => {
+  const expand = jest.fn(),
+    listen = jest.fn(),
+    page = jest.fn();
+  let now = 1000;
+  const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  try {
+    const view = render(
+      <ARInfoPanel
+        detail={harvardTestStop}
+        onClose={jest.fn()}
+        onExpand={expand}
+        onListen={listen}
+        onPageChange={page}
+        parentPosition={[10, 2, -3]}
+        rotation={[0, 90, 0]}
+        position={[1, 0, 0]}
+      />,
+    );
+    const wrongTarget = view
+      .getAllByTestId('node')
+      .find((n) => n.props.position?.[1] === -0.6)!
+      .findByProps({ testID: 'button-target' });
+    // Inverse yaw must recover the Next button's local x=.41, y=-.4.
+    fireEvent(wrongTarget, 'clickState', 1, [11.15, 1.6, -3.41]);
+    expect(page).toHaveBeenCalledWith(1);
+    expect(expand).not.toHaveBeenCalled();
+    now += 1000;
+    fireEvent(wrongTarget, 'clickState', 1, [11.15, 1.6, -3]);
+    expect(listen).toHaveBeenCalledTimes(1);
+    expect(expand).not.toHaveBeenCalled();
+    now += 1000;
+    fireEvent(wrongTarget, 'clickState', 1, [11.15, 1.4, -3]);
+    expect(expand).toHaveBeenCalledTimes(1);
   } finally {
     clock.mockRestore();
   }

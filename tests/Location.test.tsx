@@ -177,3 +177,12 @@ test('map location access shows the current fix without creating or moving a sav
   expect(hook.result.current.spot).toBeNull();
   expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(TEST_SPOT_KEY, expect.any(String));
 });
+
+test('standing still gets a fresh location even when the watcher has not emitted yet', async () => {
+  jest.mocked(Location.watchPositionAsync).mockResolvedValueOnce({ remove: jest.fn() });
+  const hook = renderHook(() => useTestLocation(true));
+  await waitFor(() => expect(hook.result.current.fix?.latitude).toBe(42.3745));
+  expect(Location.getCurrentPositionAsync).toHaveBeenCalled();
+  expect(hook.result.current.spot).toBeNull();
+  hook.unmount();
+});

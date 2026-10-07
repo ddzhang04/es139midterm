@@ -71,3 +71,11 @@ test('small-screen large-text navigation keeps story actions, layers, and develo
     dimensions.mockRestore();
   }
 });
+
+test('an open native card leaves no screen footer to intercept AR touches', () => {
+  const view = render(
+    <ResponsiveAROverlay height={724} top={<Text>Header</Text>} scene={null} footer={null} />,
+  );
+  expect(view.queryByTestId('ar-controls')).toBeNull();
+  expect(view.getByTestId('ar-interaction-area').props.pointerEvents).toBe('box-none');
+});

@@ -1,11 +1,20 @@
 jest.mock('expo-font', () => ({ useFonts: () => [true, null], isLoaded: () => true }));
-jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('expo-haptics', () => ({
+  selectionAsync: jest.fn().mockResolvedValue(undefined),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
+  NotificationFeedbackType: { Success: 'success' },
+}));
 jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }));
 jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
   return {
-    CameraView: (props: object) => React.createElement(View, { ...props, testID: 'native-camera' }),
+    CameraView: React.forwardRef((props: object, ref: unknown) => {
+      React.useImperativeHandle(ref, () => ({
+        takePictureAsync: async () => ({ uri: 'file:///test-landmark.jpg' }),
+      }));
+      return React.createElement(View, { ...props, testID: 'native-camera' });
+    }),
     useCameraPermissions: () => {
       const [permission, setPermission] = React.useState({ granted: false });
       return [
